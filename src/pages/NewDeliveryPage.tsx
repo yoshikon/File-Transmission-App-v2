@@ -7,17 +7,20 @@ import {
   AlertCircle, BookUser, Link2, Copy, Mail,
 } from 'lucide-react';
 import { formatFileSize } from '../utils/format';
+import { buildDownloadUrl, getFileIcon as getEmojiIcon, getExtensionDisplay } from '../utils/file-metadata';
 import { useAuth } from '../contexts/AuthContext';
 import { createDelivery } from '../lib/deliveries';
 import ContactPickerModal from '../components/ContactPickerModal';
-import type { Delivery, DeliveryFormData, RecipientType } from '../types';
+import EmailPreview from '../components/EmailPreview';
+import type { Delivery, DeliveryFormData, RecipientType, DeliveryFile } from '../types';
 
 const steps = [
   { id: 1, label: '宛先設定', icon: Users },
   { id: 2, label: 'ファイル選択', icon: Paperclip },
   { id: 3, label: 'メッセージ作成', icon: MessageSquare },
   { id: 4, label: '配信オプション', icon: Settings2 },
-  { id: 5, label: '確認・送信', icon: CheckCircle2 },
+  { id: 5, label: 'プレビュー', icon: Eye },
+  { id: 6, label: '確認・送信', icon: CheckCircle2 },
 ];
 
 function getFileTypeIcon(name: string) {
@@ -30,12 +33,13 @@ function getFileTypeIcon(name: string) {
 
 export default function NewDeliveryPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [step, setStep] = useState(1);
   const [sending, setSending] = useState(false);
   const [sentDelivery, setSentDelivery] = useState<Delivery | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState('');
+  const [copiedFileUrl, setCopiedFileUrl] = useState('');
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [contactPickerTarget, setContactPickerTarget] = useState<number | null>(null);
 
@@ -144,7 +148,16 @@ export default function NewDeliveryPage() {
     setTimeout(() => setCopiedToken(''), 2000);
   };
 
+  const handleCopyFileUrl = (deliveryToken: string, fileToken: string) => {
+    const url = buildDownloadUrl(deliveryToken, fileToken);
+    navigator.clipboard.writeText(url);
+    setCopiedFileUrl(fileToken);
+    setTimeout(() => setCopiedFileUrl(''), 2000);
+  };
+
   const totalSize = form.files.reduce((sum, f) => sum + f.size, 0);
+  const expiresAt = new Date(Date.now() + form.expiresInDays * 24 * 60 * 60 * 1000).toISOString();
+
   const canProceed = () => {
     if (step === 1) return form.recipients.some((r) => r.email.includes('@'));
     if (step === 2) return form.files.length > 0;
@@ -153,83 +166,41 @@ export default function NewDeliveryPage() {
   };
 
   if (sentDelivery) {
-    const recipients = sentDelivery.delivery_recipients ?? [];
     return (
-      <div className="max-w-2xl mx-auto py-12 animate-fade-in">
-        <div className="text-center mb-8">
-          <div className="rounded-full bg-emerald-100 p-6 mx-auto w-fit mb-6">
-            <CheckCircle2 className="h-16 w-16 text-emerald-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-surface-800 mb-2">送信完了</h2>
-          <p className="text-surface-500">
-            {recipients.length}件の宛先にダウンロードリンクを発行しました
-          </p>
-        </div>
-
-        {recipients.length > 0 && (
-          <div className="card p-6 mb-8">
-            <h3 className="text-sm font-semibold text-surface-800 mb-4 flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-surface-400" />
-              ダウンロードURL一覧
-            </h3>
-            <div className="space-y-3">
-              {recipients.map((r) => {
-                const url = `${window.location.origin}/d/${r.token}`;
-                return (
-                  <div key={r.id} className="rounded-lg border border-surface-200 p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Mail className="h-4 w-4 text-surface-400" />
-                      <span className="text-sm font-medium text-surface-800">{r.recipient_email}</span>
-                      <span className="badge-neutral text-xs">{r.recipient_type.toUpperCase()}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={url}
-                        className="input-field text-xs font-mono text-surface-600 bg-surface-50 flex-1"
-                        onClick={(e) => (e.target as HTMLInputElement).select()}
-                      />
-                      <button
-                        onClick={() => handleCopyUrl(r.token)}
-                        className={`btn-secondary text-xs shrink-0 transition-colors ${
-                          copiedToken === r.token ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : ''
-                        }`}
-                      >
-                        {copiedToken === r.token ? (
-                          <><CheckCircle2 className="h-3.5 w-3.5" /> コピー済み</>
-                        ) : (
-                          <><Copy className="h-3.5 w-3.5" /> コピー</>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-center gap-3">
-          <button onClick={() => navigate(`/history/${sentDelivery.id}`)} className="btn-secondary">送信詳細を確認</button>
-          <button onClick={() => { setSentDelivery(null); setCopiedToken(''); setStep(1); setForm({ ...form, recipients: [{ email: '', type: 'to' }], files: [], subject: '', message: '' }); }} className="btn-primary">
-            新しい送信を作成
-          </button>
-        </div>
-      </div>
+      <SendCompletionScreen
+        delivery={sentDelivery}
+        copiedToken={copiedToken}
+        copiedFileUrl={copiedFileUrl}
+        onCopyUrl={handleCopyUrl}
+        onCopyFileUrl={handleCopyFileUrl}
+        onViewDetail={() => navigate(`/history/${sentDelivery.id}`)}
+        onNewDelivery={() => {
+          setSentDelivery(null);
+          setCopiedToken('');
+          setCopiedFileUrl('');
+          setStep(1);
+          setForm({
+            ...form,
+            recipients: [{ email: '', type: 'to' }],
+            files: [],
+            subject: '',
+            message: '',
+          });
+        }}
+      />
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4 overflow-x-auto pb-2">
+      <div className="flex items-center gap-3 overflow-x-auto pb-2">
         {steps.map((s, i) => {
           const Icon = s.icon;
           const isActive = step === s.id;
           const isDone = step > s.id;
           return (
             <div key={s.id} className="flex items-center gap-2">
-              {i > 0 && <div className={`hidden sm:block w-8 h-px ${isDone ? 'bg-brand-400' : 'bg-surface-200'}`} />}
+              {i > 0 && <div className={`hidden sm:block w-6 h-px ${isDone ? 'bg-brand-400' : 'bg-surface-200'}`} />}
               <button
                 onClick={() => isDone && setStep(s.id)}
                 className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
@@ -403,47 +374,35 @@ export default function NewDeliveryPage() {
               </div>
             </div>
             <div className="space-y-4 pt-2">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div className="relative">
-                  <input type="checkbox" checked={form.passwordProtected} onChange={(e) => updateField('passwordProtected', e.target.checked)} className="sr-only peer" />
-                  <div className="h-6 w-11 rounded-full bg-surface-200 peer-checked:bg-brand-600 transition-colors" />
-                  <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-surface-400" />
-                  <span className="text-sm font-medium text-surface-700">パスワード保護</span>
-                </div>
-              </label>
+              <ToggleOption checked={form.passwordProtected} onChange={(v) => updateField('passwordProtected', v)} icon={Lock} label="パスワード保護" />
               {form.passwordProtected && (
                 <input type="text" value={form.password} onChange={(e) => updateField('password', e.target.value)} placeholder="ダウンロードパスワード" className="input-field ml-14 w-auto" />
               )}
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div className="relative">
-                  <input type="checkbox" checked={form.notifyOnOpen} onChange={(e) => updateField('notifyOnOpen', e.target.checked)} className="sr-only peer" />
-                  <div className="h-6 w-11 rounded-full bg-surface-200 peer-checked:bg-brand-600 transition-colors" />
-                  <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-surface-400" />
-                  <span className="text-sm font-medium text-surface-700">開封通知</span>
-                </div>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div className="relative">
-                  <input type="checkbox" checked={form.notifyOnDownload} onChange={(e) => updateField('notifyOnDownload', e.target.checked)} className="sr-only peer" />
-                  <div className="h-6 w-11 rounded-full bg-surface-200 peer-checked:bg-brand-600 transition-colors" />
-                  <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-surface-400" />
-                  <span className="text-sm font-medium text-surface-700">ダウンロード通知</span>
-                </div>
-              </label>
+              <ToggleOption checked={form.notifyOnOpen} onChange={(v) => updateField('notifyOnOpen', v)} icon={Eye} label="開封通知" />
+              <ToggleOption checked={form.notifyOnDownload} onChange={(v) => updateField('notifyOnDownload', v)} icon={Bell} label="ダウンロード通知" />
             </div>
           </div>
         )}
 
         {step === 5 && (
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-surface-800">メールプレビュー</h3>
+            <p className="text-sm text-surface-500">受信者に送信されるメールの見た目を確認できます。</p>
+            <EmailPreview
+              senderName={profile?.full_name || '送信者'}
+              senderCompany={profile?.department || ''}
+              senderEmail={profile?.email || ''}
+              recipientName={form.recipients.find((r) => r.email)?.email?.split('@')[0] || '受信者'}
+              message={form.message}
+              files={form.files}
+              expiresAt={expiresAt}
+              downloadLimit={form.downloadLimit}
+              subject={form.subject}
+            />
+          </div>
+        )}
+
+        {step === 6 && (
           <div className="space-y-6">
             <h3 className="text-lg font-semibold text-surface-800">送信内容の確認</h3>
             <div className="space-y-4">
@@ -453,13 +412,27 @@ export default function NewDeliveryPage() {
               <SummaryRow label="有効期限" value={`${form.expiresInDays}日間`} />
               <SummaryRow label="DL回数制限" value={form.downloadLimit ? `${form.downloadLimit}回` : '無制限'} />
               <SummaryRow label="パスワード保護" value={form.passwordProtected ? 'あり' : 'なし'} />
-              {form.message && (
-                <div>
-                  <span className="text-sm font-medium text-surface-500">メッセージ</span>
-                  <p className="mt-1 text-sm text-surface-700 whitespace-pre-wrap bg-surface-50 rounded-lg p-3">{form.message}</p>
-                </div>
-              )}
             </div>
+
+            <div className="rounded-lg border border-surface-200 p-4">
+              <h4 className="text-sm font-medium text-surface-700 mb-3">添付ファイル一覧</h4>
+              <div className="space-y-2">
+                {form.files.map((f, i) => (
+                  <div key={f.id} className="flex items-center gap-3 text-sm">
+                    <span className="text-lg">{getEmojiIcon(f.name)}</span>
+                    <span className="font-medium text-surface-800">{f.name}</span>
+                    <span className="text-surface-400 text-xs">{getExtensionDisplay(f.name)} · {formatFileSize(f.size)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {form.message && (
+              <div>
+                <span className="text-sm font-medium text-surface-500">メッセージ</span>
+                <p className="mt-1 text-sm text-surface-700 whitespace-pre-wrap bg-surface-50 rounded-lg p-3">{form.message}</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -469,7 +442,7 @@ export default function NewDeliveryPage() {
           <ArrowLeft className="h-4 w-4" />
           {step > 1 ? '戻る' : 'キャンセル'}
         </button>
-        {step < 5 ? (
+        {step < 6 ? (
           <button onClick={() => setStep(step + 1)} disabled={!canProceed()} className="btn-primary">
             次へ <ArrowRight className="h-4 w-4" />
           </button>
@@ -496,11 +469,157 @@ export default function NewDeliveryPage() {
   );
 }
 
+function ToggleOption({ checked, onChange, icon: Icon, label }: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  icon: typeof Lock;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center gap-3 cursor-pointer">
+      <div className="relative">
+        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="sr-only peer" />
+        <div className="h-6 w-11 rounded-full bg-surface-200 peer-checked:bg-brand-600 transition-colors" />
+        <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-surface-400" />
+        <span className="text-sm font-medium text-surface-700">{label}</span>
+      </div>
+    </label>
+  );
+}
+
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start gap-4 py-2 border-b border-surface-100 last:border-0">
       <span className="text-sm font-medium text-surface-500 w-32 shrink-0">{label}</span>
       <span className="text-sm text-surface-800">{value}</span>
+    </div>
+  );
+}
+
+function SendCompletionScreen({
+  delivery,
+  copiedToken,
+  copiedFileUrl,
+  onCopyUrl,
+  onCopyFileUrl,
+  onViewDetail,
+  onNewDelivery,
+}: {
+  delivery: Delivery;
+  copiedToken: string;
+  copiedFileUrl: string;
+  onCopyUrl: (token: string) => void;
+  onCopyFileUrl: (deliveryToken: string, fileToken: string) => void;
+  onViewDetail: () => void;
+  onNewDelivery: () => void;
+}) {
+  const recipients = delivery.delivery_recipients ?? [];
+  const files = delivery.delivery_files ?? [];
+
+  return (
+    <div className="max-w-3xl mx-auto py-8 animate-fade-in">
+      <div className="text-center mb-8">
+        <div className="rounded-full bg-emerald-100 p-6 mx-auto w-fit mb-6">
+          <CheckCircle2 className="h-16 w-16 text-emerald-600" />
+        </div>
+        <h2 className="text-2xl font-bold text-surface-800 mb-2">送信完了</h2>
+        <p className="text-surface-500">
+          {recipients.length}件の宛先にダウンロードリンクを発行しました
+        </p>
+      </div>
+
+      {files.length > 0 && (
+        <div className="card p-6 mb-6">
+          <h3 className="text-sm font-semibold text-surface-800 mb-4 flex items-center gap-2">
+            <Paperclip className="h-4 w-4 text-surface-400" />
+            ファイル別ダウンロードURL
+          </h3>
+          <div className="space-y-2">
+            {files.map((f, i) => (
+              <div key={f.id} className="rounded-lg border border-surface-200 p-3">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-lg">{getEmojiIcon(f.file_name)}</span>
+                  <span className="text-sm font-medium text-surface-800 flex-1 truncate">{f.file_name}</span>
+                  <span className="text-xs text-surface-400">{formatFileSize(f.file_size)}</span>
+                </div>
+                {recipients.map((r) => {
+                  const url = buildDownloadUrl(r.token, f.file_token);
+                  return (
+                    <div key={r.id} className="flex items-center gap-2 ml-9 mb-1.5">
+                      <span className="text-xs text-surface-500 w-40 truncate">{r.recipient_email}</span>
+                      <input
+                        type="text"
+                        readOnly
+                        value={url}
+                        className="input-field text-xs font-mono text-surface-500 bg-surface-50 flex-1 py-1.5"
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                      />
+                      <button
+                        onClick={() => onCopyFileUrl(r.token, f.file_token)}
+                        className={`btn-ghost p-1.5 text-xs shrink-0 ${copiedFileUrl === f.file_token ? 'text-emerald-600' : ''}`}
+                      >
+                        {copiedFileUrl === f.file_token ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recipients.length > 0 && (
+        <div className="card p-6 mb-8">
+          <h3 className="text-sm font-semibold text-surface-800 mb-4 flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-surface-400" />
+            一括ダウンロードURL（受信者別）
+          </h3>
+          <div className="space-y-3">
+            {recipients.map((r) => {
+              const url = `${window.location.origin}/d/${r.token}`;
+              return (
+                <div key={r.id} className="rounded-lg border border-surface-200 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="h-4 w-4 text-surface-400" />
+                    <span className="text-sm font-medium text-surface-800">{r.recipient_email}</span>
+                    <span className="badge-neutral text-xs">{r.recipient_type.toUpperCase()}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={url}
+                      className="input-field text-xs font-mono text-surface-600 bg-surface-50 flex-1"
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      onClick={() => onCopyUrl(r.token)}
+                      className={`btn-secondary text-xs shrink-0 transition-colors ${
+                        copiedToken === r.token ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : ''
+                      }`}
+                    >
+                      {copiedToken === r.token ? (
+                        <><CheckCircle2 className="h-3.5 w-3.5" /> コピー済み</>
+                      ) : (
+                        <><Copy className="h-3.5 w-3.5" /> コピー</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-center gap-3">
+        <button onClick={onViewDetail} className="btn-secondary">送信詳細を確認</button>
+        <button onClick={onNewDelivery} className="btn-primary">新しい送信を作成</button>
+      </div>
     </div>
   );
 }

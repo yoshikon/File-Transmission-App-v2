@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Delivery, DeliveryFormData } from '../types';
+import { getFileExtension } from '../utils/file-metadata';
 
 export async function createDelivery(
   senderId: string,
@@ -54,6 +55,7 @@ export async function createDelivery(
           file_name: f.name,
           file_size: f.size,
           mime_type: f.type || null,
+          file_extension: getFileExtension(f.name),
         }))
       );
     if (fileError) {
@@ -77,9 +79,138 @@ export async function fetchDeliveries(): Promise<Delivery[]> {
 export async function fetchDeliveryById(id: string): Promise<Delivery | null> {
   const { data } = await supabase
     .from('deliveries')
-    .select('*, delivery_files(*), delivery_recipients(*)')
+    .select('*, delivery_files(*), delivery_recipients(*, download_logs(*))')
     .eq('id', id)
     .maybeSingle();
 
   return data as Delivery | null;
+}
+
+export async function fetchDeliveryByToken(token: string): Promise<{
+  delivery: Delivery | null;
+  recipient: { id: string; recipient_email: string; download_count: number; file_download_counts: Record<string, number> } | null;
+}> {
+  const { data: recipientData } = await supabase
+    .from('delivery_recipients')
+    .select('id, delivery_id, recipient_email, download_count, file_download_counts')
+    .eq('token', token)
+    .maybeSingle();
+
+  if (!recipientData) return { delivery: null, recipient: null };
+
+  const { data: delivery } = await supabase
+    .from('deliveries')
+    .select('*, delivery_files(*)')
+    .eq('id', recipientData.delivery_id)
+    .maybeSingle();
+
+  return {
+    delivery: delivery as Delivery | null,
+    recipient: recipientData,
+  };
+}
+
+export async function fetchFileByToken(deliveryToken: string, fileToken: string): Promise<{
+  delivery: Delivery | null;
+  file: { id: string; file_name: string; file_size: number; mime_type: string | null } | null;
+  recipient: { id: string; download_count: number; file_download_counts: Record<string, number> } | null;
+  error: string | null;
+}> {
+  const { data: recipientData } = await supabase
+    .from('delivery_recipients')
+    .select('id, delivery_id, download_count, file_download_counts')
+    .eq('token', deliveryToken)
+    .maybeSingle();
+
+  if (!recipientData) return { delivery: null, file: null, recipient: null, error: 'INVALID_TOKEN' };
+
+  const { data: delivery } = await supabase
+    .from('deliveries')
+    .select('*')
+    .eq('id', recipientData.delivery_id)
+    .maybeSingle();
+
+  if (!delivery) return { delivery: null, file: null, recipient: null, error: 'INVALID_TOKEN' };
+
+  if (delivery.status === 'revoked') return { delivery: delivery as Delivery, file: null, recipient: null, error: 'LINK_REVOKED' };
+  if (new Date(delivery.expires_at) < new Date()) return { delivery: delivery as Delivery, file: null, recipient: null, error: 'LINK_EXPIRED' };
+
+  const { data: fileData } = await supabase
+    .from('delivery_files')
+    .select('id, file_name, file_size, mime_type')
+    .eq('delivery_id', delivery.id)
+    .eq('file_token', fileToken)
+    .maybeSingle();
+
+  if (!fileData) return { delivery: delivery as Delivery, file: null, recipient: null, error: 'INVALID_TOKEN' };
+
+  if (delivery.download_limit) {
+    const fileCount = (recipientData.file_download_counts || {})[fileData.id] || 0;
+    if (fileCount >= delivery.download_limit) {
+      return { delivery: delivery as Delivery, file: fileData, recipient: recipientData, error: 'DOWNLOAD_LIMIT_EXCEEDED' };
+    }
+  }
+
+  return { delivery: delivery as Delivery, file: fileData, recipient: recipientData, error: null };
+}
+
+export async function recordDownload(
+  recipientId: string,
+  fileId: string,
+  downloadType: 'individual' | 'bulk' = 'individual'
+): Promise<void> {
+  await supabase.from('download_logs').insert({
+    delivery_recipient_id: recipientId,
+    file_id: fileId,
+    download_type: downloadType,
+  });
+
+  const { data: recipient } = await supabase
+    .from('delivery_recipients')
+    .select('download_count, file_download_counts')
+    .eq('id', recipientId)
+    .maybeSingle();
+
+  if (recipient) {
+    const counts = { ...(recipient.file_download_counts || {}) };
+    counts[fileId] = (counts[fileId] || 0) + 1;
+
+    await supabase
+      .from('delivery_recipients')
+      .update({
+        download_count: recipient.download_count + 1,
+        file_download_counts: counts,
+        first_accessed_at: new Date().toISOString(),
+      })
+      .eq('id', recipientId);
+  }
+}
+
+export async function revokeDelivery(deliveryId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('deliveries')
+    .update({ status: 'revoked' })
+    .eq('id', deliveryId);
+  return { error: error?.message ?? null };
+}
+
+export async function extendDeliveryExpiry(deliveryId: string, days: number): Promise<{ error: string | null }> {
+  const { data } = await supabase
+    .from('deliveries')
+    .select('expires_at')
+    .eq('id', deliveryId)
+    .maybeSingle();
+
+  if (!data) return { error: '送信データが見つかりません' };
+
+  const currentExpiry = new Date(data.expires_at);
+  const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+  baseDate.setDate(baseDate.getDate() + days);
+
+  const { error } = await supabase
+    .from('deliveries')
+    .update({ expires_at: baseDate.toISOString(), status: 'sent' })
+    .eq('id', deliveryId);
+
+  return { error: error?.message ?? null };
 }

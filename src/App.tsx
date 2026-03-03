@@ -13,6 +13,7 @@ import RecipientDownloadPage from './pages/recipient/RecipientDownloadPage';
 import RecipientRegisterPage from './pages/recipient/RecipientRegisterPage';
 import RecipientExpiredPage from './pages/recipient/RecipientExpiredPage';
 import RecipientNotFoundPage from './pages/recipient/RecipientNotFoundPage';
+import RecipientFileDownloadPage from './pages/recipient/RecipientFileDownloadPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -48,6 +49,7 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
 
       <Route path="/d/:token" element={<RecipientDownloadPage />} />
+      <Route path="/d/:token/f/:fileToken" element={<RecipientFileDownloadPage />} />
       <Route path="/d/:token/register" element={<RecipientRegisterPage />} />
       <Route path="/d/:token/expired" element={<RecipientExpiredPage />} />
       <Route path="/d/invalid" element={<RecipientNotFoundPage />} />

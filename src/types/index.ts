@@ -1,6 +1,7 @@
 export type UserRole = 'super_admin' | 'sender';
 export type RecipientType = 'to' | 'cc' | 'bcc';
 export type DeliveryStatus = 'draft' | 'sent' | 'expired' | 'revoked';
+export type DownloadType = 'individual' | 'bulk';
 
 export interface Profile {
   id: string;
@@ -74,6 +75,8 @@ export interface DeliveryFile {
   file_size: number;
   mime_type: string | null;
   storage_path: string | null;
+  file_token: string;
+  file_extension: string;
   created_at: string;
 }
 
@@ -85,6 +88,7 @@ export interface DeliveryRecipient {
   token: string;
   download_count: number;
   first_accessed_at: string | null;
+  file_download_counts: Record<string, number>;
   created_at: string;
   download_logs?: DownloadLog[];
 }
@@ -93,6 +97,7 @@ export interface DownloadLog {
   id: string;
   delivery_recipient_id: string;
   file_id: string;
+  download_type: DownloadType;
   downloaded_at: string;
   ip_address: string | null;
   user_agent: string | null;
@@ -130,4 +135,14 @@ export interface SelectedFile {
   size: number;
   type: string;
   file?: File;
+}
+
+export interface FileMetadata {
+  index: number;
+  indexDisplay: string;
+  icon: string;
+  name: string;
+  sizeDisplay: string;
+  extensionDisplay: string;
+  individualUrl: string;
 }
