@@ -10,6 +10,7 @@ import { formatFileSize } from '../utils/format';
 import { buildDownloadUrl, getFileIcon as getEmojiIcon, getExtensionDisplay } from '../utils/file-metadata';
 import { useAuth } from '../contexts/AuthContext';
 import { createDelivery } from '../lib/deliveries';
+import { sendDeliveryEmails, type EmailSendResult } from '../lib/email';
 import ContactPickerModal from '../components/ContactPickerModal';
 import EmailPreview from '../components/EmailPreview';
 import type { Delivery, DeliveryFormData, RecipientType, DeliveryFile } from '../types';
@@ -36,7 +37,9 @@ export default function NewDeliveryPage() {
   const { user, profile } = useAuth();
   const [step, setStep] = useState(1);
   const [sending, setSending] = useState(false);
+  const [sendingPhase, setSendingPhase] = useState<'creating' | 'emailing' | null>(null);
   const [sentDelivery, setSentDelivery] = useState<Delivery | null>(null);
+  const [emailResult, setEmailResult] = useState<EmailSendResult | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState('');
   const [copiedFileUrl, setCopiedFileUrl] = useState('');
@@ -133,13 +136,33 @@ export default function NewDeliveryPage() {
     if (!user) return;
     setSending(true);
     setSendError(null);
+    setEmailResult(null);
+    setSendingPhase('creating');
+
     const { data, error } = await createDelivery(user.id, form);
-    setSending(false);
-    if (error) {
-      setSendError(error);
-    } else {
-      setSentDelivery(data);
+    if (error || !data) {
+      setSending(false);
+      setSendingPhase(null);
+      setSendError(error || '送信データの作成に失敗しました');
+      return;
     }
+
+    setSendingPhase('emailing');
+    try {
+      const result = await sendDeliveryEmails(
+        data,
+        profile?.full_name || '送信者',
+        profile?.department || '',
+        window.location.origin,
+      );
+      setEmailResult(result);
+    } catch {
+      setEmailResult({ total: 0, sent: 0, failed: 0, results: [] });
+    }
+
+    setSending(false);
+    setSendingPhase(null);
+    setSentDelivery(data);
   };
 
   const handleCopyUrl = (token: string) => {
@@ -169,6 +192,7 @@ export default function NewDeliveryPage() {
     return (
       <SendCompletionScreen
         delivery={sentDelivery}
+        emailResult={emailResult}
         copiedToken={copiedToken}
         copiedFileUrl={copiedFileUrl}
         onCopyUrl={handleCopyUrl}
@@ -176,6 +200,7 @@ export default function NewDeliveryPage() {
         onViewDetail={() => navigate(`/history/${sentDelivery.id}`)}
         onNewDelivery={() => {
           setSentDelivery(null);
+          setEmailResult(null);
           setCopiedToken('');
           setCopiedFileUrl('');
           setStep(1);
@@ -450,7 +475,12 @@ export default function NewDeliveryPage() {
           <div className="flex items-center gap-3">
             <button onClick={handleSend} disabled={sending} className="btn-primary bg-emerald-600 hover:bg-emerald-700">
               {sending ? (
-                <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="text-sm">
+                    {sendingPhase === 'creating' ? '配信データ作成中...' : 'メール送信中...'}
+                  </span>
+                </div>
               ) : (
                 <>
                   <Send className="h-4 w-4" /> 送信する
@@ -501,6 +531,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 
 function SendCompletionScreen({
   delivery,
+  emailResult,
   copiedToken,
   copiedFileUrl,
   onCopyUrl,
@@ -509,6 +540,7 @@ function SendCompletionScreen({
   onNewDelivery,
 }: {
   delivery: Delivery;
+  emailResult: EmailSendResult | null;
   copiedToken: string;
   copiedFileUrl: string;
   onCopyUrl: (token: string) => void;
@@ -519,17 +551,61 @@ function SendCompletionScreen({
   const recipients = delivery.delivery_recipients ?? [];
   const files = delivery.delivery_files ?? [];
 
+  const allSent = emailResult && emailResult.sent === emailResult.total && emailResult.total > 0;
+  const someFailed = emailResult && emailResult.failed > 0;
+
   return (
     <div className="max-w-3xl mx-auto py-8 animate-fade-in">
       <div className="text-center mb-8">
-        <div className="rounded-full bg-emerald-100 p-6 mx-auto w-fit mb-6">
-          <CheckCircle2 className="h-16 w-16 text-emerald-600" />
+        <div className={`rounded-full p-6 mx-auto w-fit mb-6 ${allSent ? 'bg-emerald-100' : someFailed ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+          {someFailed ? (
+            <AlertCircle className="h-16 w-16 text-amber-600" />
+          ) : (
+            <CheckCircle2 className={`h-16 w-16 ${allSent ? 'text-emerald-600' : 'text-emerald-600'}`} />
+          )}
         </div>
-        <h2 className="text-2xl font-bold text-surface-800 mb-2">送信完了</h2>
+        <h2 className="text-2xl font-bold text-surface-800 mb-2">
+          {someFailed ? '送信完了（一部エラー）' : '送信完了'}
+        </h2>
         <p className="text-surface-500">
           {recipients.length}件の宛先にダウンロードリンクを発行しました
         </p>
       </div>
+
+      {emailResult && emailResult.total > 0 && (
+        <div className={`card p-4 mb-6 border-l-4 ${allSent ? 'border-l-emerald-500 bg-emerald-50' : someFailed ? 'border-l-amber-500 bg-amber-50' : 'border-l-blue-500 bg-blue-50'}`}>
+          <div className="flex items-center gap-3 mb-3">
+            <Mail className={`h-5 w-5 ${allSent ? 'text-emerald-600' : someFailed ? 'text-amber-600' : 'text-blue-600'}`} />
+            <span className="font-semibold text-surface-800">
+              メール送信結果: {emailResult.sent}/{emailResult.total}件 送信成功
+            </span>
+          </div>
+          {emailResult.results.map((r, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm py-1.5 px-2">
+              {r.status === 'sent' ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              ) : (
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+              )}
+              <span className="text-surface-700">{r.recipient_email}</span>
+              {r.status === 'failed' && r.error && (
+                <span className="text-xs text-red-500 ml-auto truncate max-w-[200px]">{r.error}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {emailResult && emailResult.total === 0 && (
+        <div className="card p-4 mb-6 border-l-4 border-l-surface-300 bg-surface-50">
+          <div className="flex items-center gap-3">
+            <Mail className="h-5 w-5 text-surface-400" />
+            <span className="text-sm text-surface-600">
+              メール送信はスキップされました。ダウンロードURLを手動で共有してください。
+            </span>
+          </div>
+        </div>
+      )}
 
       {files.length > 0 && (
         <div className="card p-6 mb-6">

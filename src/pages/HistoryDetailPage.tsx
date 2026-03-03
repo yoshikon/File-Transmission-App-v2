@@ -6,9 +6,20 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { fetchDeliveryById, revokeDelivery, extendDeliveryExpiry } from '../lib/deliveries';
+import { fetchEmailLogs } from '../lib/email';
 import { formatDate, formatFileSize, daysUntilExpiry, isExpired } from '../utils/format';
 import { buildDownloadUrl, getFileIcon, getExtensionDisplay, formatExpiryDisplay } from '../utils/file-metadata';
 import type { Delivery, DeliveryRecipient } from '../types';
+
+interface EmailLog {
+  id: string;
+  delivery_recipient_id: string;
+  recipient_email: string;
+  status: string;
+  error_message: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
 
 export default function HistoryDetailPage() {
   const { id } = useParams();
@@ -22,6 +33,7 @@ export default function HistoryDetailPage() {
   const [expandedRecipients, setExpandedRecipients] = useState<Set<string>>(new Set());
   const [revoking, setRevoking] = useState(false);
   const [extending, setExtending] = useState(false);
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -33,6 +45,8 @@ export default function HistoryDetailPage() {
     const data = await fetchDeliveryById(id);
     setDelivery(data);
     setLoading(false);
+    const logs = await fetchEmailLogs(id);
+    setEmailLogs(logs as EmailLog[]);
   };
 
   if (loading) {
@@ -214,6 +228,7 @@ export default function HistoryDetailPage() {
               const isExpanded = expandedRecipients.has(r.id);
               const fileDownloads = getRecipientFileDownloads(r);
               const totalDl = fileDownloads.reduce((sum, fd) => sum + fd.count, 0);
+              const recipientLog = emailLogs.find((l) => l.delivery_recipient_id === r.id);
 
               return (
                 <div key={r.id} className="rounded-lg border border-surface-200 overflow-hidden">
@@ -228,8 +243,21 @@ export default function HistoryDetailPage() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-surface-800">{r.recipient_email}</p>
-                          <div className="flex items-center gap-3 mt-0.5 text-xs text-surface-400">
+                          <div className="flex items-center gap-3 mt-0.5 text-xs text-surface-400 flex-wrap">
                             <span className="badge-neutral text-xs">{r.recipient_type.toUpperCase()}</span>
+                            {recipientLog ? (
+                              recipientLog.status === 'sent' ? (
+                                <span className="flex items-center gap-1 text-emerald-600">
+                                  <CheckCircle2 className="h-3 w-3" /> メール送信済み
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-red-500" title={recipientLog.error_message || ''}>
+                                  <AlertTriangle className="h-3 w-3" /> 送信失敗
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-surface-300">メール未送信</span>
+                            )}
                             {r.first_accessed_at ? (
                               <span className="flex items-center gap-1 text-emerald-600">
                                 <Eye className="h-3 w-3" /> 閲覧済み ({formatDate(r.first_accessed_at)})
