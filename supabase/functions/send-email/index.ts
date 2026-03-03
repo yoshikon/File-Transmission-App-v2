@@ -293,7 +293,7 @@ Deno.serve(async (req: Request) => {
       .eq("id", user.id)
       .maybeSingle();
 
-    const fromEmail = notifSettings?.sender_email || "noreply@secureshare.app";
+    const fromEmail = notifSettings?.sender_email || "onboarding@resend.dev";
     const fromName = notifSettings?.sender_name || "SecureShare";
 
     const results: {
