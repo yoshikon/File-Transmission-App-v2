@@ -91,22 +91,22 @@ export default function TemplatesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-surface-500">{templates.length}件のテンプレート</p>
+        <p className="text-surface-500 dark:text-surface-400">{templates.length}件のテンプレート</p>
         <button onClick={() => openForm()} className="btn-primary text-sm"><Plus className="h-4 w-4" /> 新規作成</button>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 p-4 flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
+          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
         </div>
       )}
 
       {templates.length === 0 ? (
         <div className="card p-12 text-center">
-          <FileText className="h-12 w-12 text-surface-300 mx-auto mb-4" />
-          <p className="text-surface-600 font-medium mb-2">テンプレートがありません</p>
-          <p className="text-sm text-surface-400 mb-6">よく使うメッセージをテンプレートとして保存できます</p>
+          <FileText className="h-12 w-12 text-surface-300 dark:text-surface-600 mx-auto mb-4" />
+          <p className="text-surface-600 dark:text-surface-300 font-medium mb-2">テンプレートがありません</p>
+          <p className="text-sm text-surface-400 dark:text-surface-500 mb-6">よく使うメッセージをテンプレートとして保存できます</p>
           <button onClick={() => openForm()} className="btn-primary mx-auto">
             <Plus className="h-4 w-4" /> 最初のテンプレートを作成
           </button>
@@ -119,18 +119,18 @@ export default function TemplatesPage() {
               <div key={t.id} className="card p-5 hover:shadow-md transition-shadow group">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-brand-50 p-2">
-                      <FileText className="h-5 w-5 text-brand-600" />
+                    <div className="rounded-lg bg-brand-50 dark:bg-brand-900/20 p-2">
+                      <FileText className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-surface-800">{t.name}</p>
+                      <p className="text-sm font-semibold text-surface-800 dark:text-surface-200">{t.name}</p>
                       {t.is_shared && (
-                        <span className="inline-flex items-center gap-1 text-xs text-surface-400 mt-0.5">
+                        <span className="inline-flex items-center gap-1 text-xs text-surface-400 dark:text-surface-500 mt-0.5">
                           <Share2 className="h-3 w-3" /> 共有
                         </span>
                       )}
                       {!isOwned && (
-                        <span className="inline-flex items-center gap-1 text-xs text-surface-400 mt-0.5">
+                        <span className="inline-flex items-center gap-1 text-xs text-surface-400 dark:text-surface-500 mt-0.5">
                           他のユーザーのテンプレート
                         </span>
                       )}
@@ -145,15 +145,15 @@ export default function TemplatesPage() {
                         <button onClick={() => openForm(t)} className="btn-ghost p-1.5" title="編集">
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(t.id)} className="btn-ghost p-1.5 hover:text-red-500" title="削除">
+                        <button onClick={() => handleDelete(t.id)} className="btn-ghost p-1.5 hover:text-red-500 dark:hover:text-red-400" title="削除">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </>
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-surface-500 mb-2">件名: {t.subject}</p>
-                <p className="text-xs text-surface-400 line-clamp-3">{t.body}</p>
+                <p className="text-xs text-surface-500 dark:text-surface-400 mb-2">件名: {t.subject}</p>
+                <p className="text-xs text-surface-400 dark:text-surface-500 line-clamp-3">{t.body}</p>
               </div>
             );
           })}
@@ -164,31 +164,31 @@ export default function TemplatesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
           <div className="card w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-surface-800">{editing ? 'テンプレートを編集' : '新規テンプレート'}</h3>
+              <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-100">{editing ? 'テンプレートを編集' : '新規テンプレート'}</h3>
               <button onClick={() => setShowForm(false)} className="btn-ghost p-1"><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1">テンプレート名</label>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">テンプレート名</label>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="ファイル送付（標準）" className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1">件名</label>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">件名</label>
                 <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="【ファイル送付】" className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1">本文</label>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">本文</label>
                 <textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} rows={10} placeholder="メール本文..." className="input-field resize-none" />
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.is_shared} onChange={(e) => setForm({ ...form, is_shared: e.target.checked })} className="rounded border-surface-300 text-brand-600" />
-                <span className="text-sm text-surface-700">全スタッフと共有</span>
+                <span className="text-sm text-surface-700 dark:text-surface-300">全スタッフと共有</span>
               </label>
             </div>
             {error && (
-              <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="mt-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
               </div>
             )}
             <div className="flex justify-end gap-3 mt-6">
@@ -207,13 +207,13 @@ export default function TemplatesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setPreview(null)}>
           <div className="card w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-surface-800">プレビュー: {preview.name}</h3>
+              <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-100">プレビュー: {preview.name}</h3>
               <button onClick={() => setPreview(null)} className="btn-ghost p-1"><X className="h-5 w-5" /></button>
             </div>
-            <div className="bg-surface-50 rounded-lg p-6">
-              <p className="text-sm font-medium text-surface-800 mb-4">件名: {preview.subject}</p>
-              <div className="border-t border-surface-200 pt-4">
-                <p className="text-sm text-surface-700 whitespace-pre-wrap">{preview.body}</p>
+            <div className="bg-surface-50 dark:bg-surface-800 rounded-lg p-6">
+              <p className="text-sm font-medium text-surface-800 dark:text-surface-200 mb-4">件名: {preview.subject}</p>
+              <div className="border-t border-surface-200 dark:border-surface-700 pt-4">
+                <p className="text-sm text-surface-700 dark:text-surface-300 whitespace-pre-wrap">{preview.body}</p>
               </div>
             </div>
           </div>

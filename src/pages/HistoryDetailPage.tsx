@@ -135,7 +135,7 @@ export default function HistoryDetailPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <button onClick={() => navigate('/history')} className="btn-ghost text-surface-500">
+      <button onClick={() => navigate('/history')} className="btn-ghost text-surface-500 dark:text-surface-400">
         <ArrowLeft className="h-4 w-4" /> 送信履歴に戻る
       </button>
 
@@ -144,22 +144,22 @@ export default function HistoryDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               {delivery.password_protected ? (
-                <div className="rounded-lg bg-amber-50 p-2"><Lock className="h-5 w-5 text-amber-600" /></div>
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 p-2"><Lock className="h-5 w-5 text-amber-600 dark:text-amber-400" /></div>
               ) : (
-                <div className="rounded-lg bg-brand-50 p-2"><FileText className="h-5 w-5 text-brand-600" /></div>
+                <div className="rounded-lg bg-brand-50 dark:bg-brand-900/20 p-2"><FileText className="h-5 w-5 text-brand-600 dark:text-brand-400" /></div>
               )}
-              <h2 className="text-xl font-bold text-surface-800">{delivery.subject}</h2>
+              <h2 className="text-xl font-bold text-surface-800 dark:text-surface-100">{delivery.subject}</h2>
               {statusBadge()}
             </div>
-            <div className="flex items-center gap-4 text-sm text-surface-500">
+            <div className="flex items-center gap-4 text-sm text-surface-500 dark:text-surface-400">
               <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {formatDate(delivery.created_at)}</span>
               {!expired && !revoked ? (
-                <span className={`flex items-center gap-1 ${expDays <= 3 ? 'text-amber-600 font-medium' : ''}`}>
+                <span className={`flex items-center gap-1 ${expDays <= 3 ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}`}>
                   {expDays <= 3 && <AlertTriangle className="h-3.5 w-3.5" />}
                   有効期限: 残り{expDays}日
                 </span>
               ) : expired && !revoked ? (
-                <span className="text-red-500 font-medium">期限切れ</span>
+                <span className="text-red-500 dark:text-red-400 font-medium">期限切れ</span>
               ) : null}
             </div>
           </div>
@@ -171,12 +171,12 @@ export default function HistoryDetailPage() {
                     <CalendarPlus className="h-4 w-4" /> 期限延長
                   </button>
                   {showExtendMenu && (
-                    <div className="absolute right-0 top-full mt-1 z-10 bg-white rounded-lg border border-surface-200 shadow-lg py-1 min-w-[140px]">
+                    <div className="absolute right-0 top-full mt-1 z-10 bg-white dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700 shadow-lg py-1 min-w-[140px]">
                       {[7, 14, 30].map((d) => (
                         <button
                           key={d}
                           onClick={() => handleExtend(d)}
-                          className="w-full text-left px-4 py-2 text-sm text-surface-700 hover:bg-surface-50"
+                          className="w-full text-left px-4 py-2 text-sm text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700/50"
                         >
                           +{d}日
                         </button>
@@ -193,34 +193,34 @@ export default function HistoryDetailPage() {
         </div>
 
         {delivery.message && (
-          <div className="bg-surface-50 rounded-lg p-4 mb-6">
-            <p className="text-sm text-surface-500 font-medium mb-1">メッセージ</p>
-            <p className="text-sm text-surface-700 whitespace-pre-wrap">{delivery.message}</p>
+          <div className="bg-surface-50 dark:bg-surface-800 rounded-lg p-4 mb-6">
+            <p className="text-sm text-surface-500 dark:text-surface-400 font-medium mb-1">メッセージ</p>
+            <p className="text-sm text-surface-700 dark:text-surface-300 whitespace-pre-wrap">{delivery.message}</p>
           </div>
         )}
 
         <div className="mb-8">
-          <h3 className="text-sm font-semibold text-surface-800 mb-3 flex items-center gap-2">
-            <Download className="h-4 w-4 text-surface-400" />
+          <h3 className="text-sm font-semibold text-surface-800 dark:text-surface-200 mb-3 flex items-center gap-2">
+            <Download className="h-4 w-4 text-surface-400 dark:text-surface-500" />
             添付ファイル ({files.length}件 / {formatFileSize(totalSize)})
           </h3>
           <div className="grid gap-2">
             {files.map((f) => (
-              <div key={f.id} className="flex items-center gap-3 rounded-lg border border-surface-200 p-3">
+              <div key={f.id} className="flex items-center gap-3 rounded-lg border border-surface-200 dark:border-surface-700 p-3">
                 <span className="text-xl shrink-0">{getFileIcon(f.file_name)}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-surface-800 truncate">{f.file_name}</p>
-                  <p className="text-xs text-surface-400">{getExtensionDisplay(f.file_name)} · {formatFileSize(f.file_size)}</p>
+                  <p className="text-sm font-medium text-surface-800 dark:text-surface-200 truncate">{f.file_name}</p>
+                  <p className="text-xs text-surface-400 dark:text-surface-500">{getExtensionDisplay(f.file_name)} · {formatFileSize(f.file_size)}</p>
                 </div>
-                <span className="text-xs text-surface-400 font-mono">{f.file_token.slice(0, 8)}...</span>
+                <span className="text-xs text-surface-400 dark:text-surface-500 font-mono">{f.file_token.slice(0, 8)}...</span>
               </div>
             ))}
           </div>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-surface-800 mb-3 flex items-center gap-2">
-            <User className="h-4 w-4 text-surface-400" />
+          <h3 className="text-sm font-semibold text-surface-800 dark:text-surface-200 mb-3 flex items-center gap-2">
+            <User className="h-4 w-4 text-surface-400 dark:text-surface-500" />
             受信者・ダウンロード状況 ({recipients.length}件)
           </h3>
           <div className="space-y-3">
@@ -231,35 +231,35 @@ export default function HistoryDetailPage() {
               const recipientLog = emailLogs.find((l) => l.delivery_recipient_id === r.id);
 
               return (
-                <div key={r.id} className="rounded-lg border border-surface-200 overflow-hidden">
+                <div key={r.id} className="rounded-lg border border-surface-200 dark:border-surface-700 overflow-hidden">
                   <div
-                    className="p-4 cursor-pointer hover:bg-surface-50 transition-colors"
+                    className="p-4 cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors"
                     onClick={() => toggleRecipient(r.id)}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-surface-100 p-2">
-                          <Mail className="h-4 w-4 text-surface-500" />
+                        <div className="rounded-full bg-surface-100 dark:bg-surface-700 p-2">
+                          <Mail className="h-4 w-4 text-surface-500 dark:text-surface-400" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-surface-800">{r.recipient_email}</p>
-                          <div className="flex items-center gap-3 mt-0.5 text-xs text-surface-400 flex-wrap">
+                          <p className="text-sm font-medium text-surface-800 dark:text-surface-200">{r.recipient_email}</p>
+                          <div className="flex items-center gap-3 mt-0.5 text-xs text-surface-400 dark:text-surface-500 flex-wrap">
                             <span className="badge-neutral text-xs">{r.recipient_type.toUpperCase()}</span>
                             {recipientLog ? (
                               recipientLog.status === 'sent' ? (
-                                <span className="flex items-center gap-1 text-emerald-600">
+                                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                                   <CheckCircle2 className="h-3 w-3" /> メール送信済み
                                 </span>
                               ) : (
-                                <span className="flex items-center gap-1 text-red-500" title={recipientLog.error_message || ''}>
+                                <span className="flex items-center gap-1 text-red-500 dark:text-red-400" title={recipientLog.error_message || ''}>
                                   <AlertTriangle className="h-3 w-3" /> 送信失敗
                                 </span>
                               )
                             ) : (
-                              <span className="text-surface-300">メール未送信</span>
+                              <span className="text-surface-300 dark:text-surface-600">メール未送信</span>
                             )}
                             {r.first_accessed_at ? (
-                              <span className="flex items-center gap-1 text-emerald-600">
+                              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                                 <Eye className="h-3 w-3" /> 閲覧済み ({formatDate(r.first_accessed_at)})
                               </span>
                             ) : (
@@ -277,42 +277,42 @@ export default function HistoryDetailPage() {
                           className="btn-ghost text-xs"
                         >
                           {copied === r.token ? (
-                            <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> コピー済み</>
+                            <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> コピー済み</>
                           ) : (
                             <><Copy className="h-3.5 w-3.5" /> URLコピー</>
                           )}
                         </button>
-                        {isExpanded ? <ChevronDown className="h-4 w-4 text-surface-400" /> : <ChevronRight className="h-4 w-4 text-surface-400" />}
+                        {isExpanded ? <ChevronDown className="h-4 w-4 text-surface-400 dark:text-surface-500" /> : <ChevronRight className="h-4 w-4 text-surface-400 dark:text-surface-500" />}
                       </div>
                     </div>
                   </div>
 
                   {isExpanded && (
-                    <div className="border-t border-surface-200 bg-surface-50 p-4">
-                      <p className="text-xs font-medium text-surface-600 mb-3 flex items-center gap-1.5">
+                    <div className="border-t border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-4">
+                      <p className="text-xs font-medium text-surface-600 dark:text-surface-300 mb-3 flex items-center gap-1.5">
                         <Link2 className="h-3.5 w-3.5" /> ファイル別ダウンロードURL・状況
                       </p>
                       <div className="space-y-2">
                         {fileDownloads.map(({ file, count }) => {
                           const fileUrl = buildDownloadUrl(r.token, file.file_token);
                           return (
-                            <div key={file.id} className="rounded-lg bg-white border border-surface-200 p-3">
+                            <div key={file.id} className="rounded-lg bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 p-3">
                               <div className="flex items-center gap-3 mb-2">
                                 <span className="text-lg">{getFileIcon(file.file_name)}</span>
-                                <span className="text-sm font-medium text-surface-800 flex-1 truncate">{file.file_name}</span>
-                                <span className="text-xs text-surface-400">{count}回DL</span>
+                                <span className="text-sm font-medium text-surface-800 dark:text-surface-200 flex-1 truncate">{file.file_name}</span>
+                                <span className="text-xs text-surface-400 dark:text-surface-500">{count}回DL</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <input
                                   type="text"
                                   readOnly
                                   value={fileUrl}
-                                  className="input-field text-xs font-mono text-surface-500 bg-surface-50 flex-1 py-1.5"
+                                  className="input-field text-xs font-mono text-surface-500 dark:text-surface-400 bg-surface-50 dark:bg-surface-800 flex-1 py-1.5"
                                   onClick={(e) => { e.stopPropagation(); (e.target as HTMLInputElement).select(); }}
                                 />
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleCopyFileUrl(r.token, file.file_token); }}
-                                  className={`btn-ghost p-1.5 text-xs shrink-0 ${copiedFileUrl === file.file_token ? 'text-emerald-600' : ''}`}
+                                  className={`btn-ghost p-1.5 text-xs shrink-0 ${copiedFileUrl === file.file_token ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
                                 >
                                   {copiedFileUrl === file.file_token ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                                 </button>
@@ -324,14 +324,14 @@ export default function HistoryDetailPage() {
 
                       {(r.download_logs?.length ?? 0) > 0 && (
                         <div className="mt-4">
-                          <p className="text-xs font-medium text-surface-600 mb-2">ダウンロード履歴</p>
+                          <p className="text-xs font-medium text-surface-600 dark:text-surface-300 mb-2">ダウンロード履歴</p>
                           <div className="space-y-1">
                             {r.download_logs?.slice(0, 10).map((log) => {
                               const f = files.find((fl) => fl.id === log.file_id);
                               return (
-                                <div key={log.id} className="flex items-center gap-3 text-xs text-surface-500 py-1.5">
-                                  <span className="text-surface-400">{formatDate(log.downloaded_at)}</span>
-                                  <span className="font-medium text-surface-700">{f?.file_name || 'ファイル'}</span>
+                                <div key={log.id} className="flex items-center gap-3 text-xs text-surface-500 dark:text-surface-400 py-1.5">
+                                  <span className="text-surface-400 dark:text-surface-500">{formatDate(log.downloaded_at)}</span>
+                                  <span className="font-medium text-surface-700 dark:text-surface-300">{f?.file_name || 'ファイル'}</span>
                                   <span className="badge-neutral text-[10px]">{log.download_type === 'bulk' ? '一括' : '個別'}</span>
                                 </div>
                               );
@@ -352,11 +352,11 @@ export default function HistoryDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowRevokeConfirm(false)}>
           <div className="card w-full max-w-md p-6 animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="text-center mb-6">
-              <div className="rounded-full bg-red-50 p-4 mx-auto w-fit mb-4">
-                <XCircle className="h-8 w-8 text-red-500" />
+              <div className="rounded-full bg-red-50 dark:bg-red-900/20 p-4 mx-auto w-fit mb-4">
+                <XCircle className="h-8 w-8 text-red-500 dark:text-red-400" />
               </div>
-              <h3 className="text-lg font-semibold text-surface-800 mb-2">リンクを無効化しますか?</h3>
-              <p className="text-sm text-surface-500">
+              <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-100 mb-2">リンクを無効化しますか?</h3>
+              <p className="text-sm text-surface-500 dark:text-surface-400">
                 すべての受信者のダウンロードリンクが即時無効になります。この操作は取り消せません。
               </p>
             </div>

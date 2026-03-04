@@ -22,8 +22,8 @@ function StatCard({ icon: Icon, label, value, color }: {
         </div>
       </div>
       <div className="mt-4">
-        <div className="text-3xl font-bold text-surface-800">{value}</div>
-        <div className="mt-1 text-sm text-surface-500">{label}</div>
+        <div className="text-3xl font-bold text-surface-800 dark:text-surface-100">{value}</div>
+        <div className="mt-1 text-sm text-surface-500 dark:text-surface-400">{label}</div>
       </div>
     </div>
   );
@@ -82,8 +82,8 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-surface-800">概要</h2>
-          <p className="text-surface-500 mt-1">今月の送信状況をご確認ください</p>
+          <h2 className="text-2xl font-bold text-surface-800 dark:text-surface-100">概要</h2>
+          <p className="text-surface-500 dark:text-surface-400 mt-1">今月の送信状況をご確認ください</p>
         </div>
         <Link to="/delivery/new" className="btn-primary">
           <Send className="h-4 w-4" />
@@ -92,22 +92,22 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Send} label="今月の送信件数" value={monthlySends} color="bg-blue-50 text-brand-600" />
-        <StatCard icon={Clock} label="未ダウンロード" value={pendingDownloads} color="bg-amber-50 text-amber-600" />
-        <StatCard icon={AlertTriangle} label="期限切れ間近" value={expiringLinks} color="bg-red-50 text-red-500" />
-        <StatCard icon={Download} label="今月のDL数" value={monthlyDownloads} color="bg-emerald-50 text-emerald-600" />
+        <StatCard icon={Send} label="今月の送信件数" value={monthlySends} color="bg-blue-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400" />
+        <StatCard icon={Clock} label="未ダウンロード" value={pendingDownloads} color="bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400" />
+        <StatCard icon={AlertTriangle} label="期限切れ間近" value={expiringLinks} color="bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400" />
+        <StatCard icon={Download} label="今月のDL数" value={monthlyDownloads} color="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400" />
       </div>
 
       <div className="card">
         <div className="flex items-center justify-between p-6 pb-2">
-          <h3 className="text-lg font-semibold text-surface-800">最近の送信</h3>
-          <Link to="/history" className="text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
+          <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-100">最近の送信</h3>
+          <Link to="/history" className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium flex items-center gap-1">
             すべて表示 <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="divide-y divide-surface-100">
+        <div className="divide-y divide-surface-100 dark:divide-surface-700">
           {recentDeliveries.length === 0 && (
-            <div className="px-6 py-12 text-center text-surface-400">送信履歴がありません</div>
+            <div className="px-6 py-12 text-center text-surface-400 dark:text-surface-500">送信履歴がありません</div>
           )}
           {recentDeliveries.map((d) => {
             const fileCount = d.delivery_files?.length || 0;
@@ -118,31 +118,31 @@ export default function DashboardPage() {
             const expired = isExpired(d.expires_at);
 
             return (
-              <Link key={d.id} to={`/history/${d.id}`} className="flex items-center gap-4 px-6 py-4 hover:bg-surface-50 transition-colors group">
-                <div className={`rounded-lg p-2.5 ${d.password_protected ? 'bg-amber-50' : 'bg-brand-50'}`}>
-                  {d.password_protected ? <Lock className="h-5 w-5 text-amber-600" /> : <FileText className="h-5 w-5 text-brand-600" />}
+              <Link key={d.id} to={`/history/${d.id}`} className="flex items-center gap-4 px-6 py-4 hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors group">
+                <div className={`rounded-lg p-2.5 ${d.password_protected ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-brand-50 dark:bg-brand-900/20'}`}>
+                  {d.password_protected ? <Lock className="h-5 w-5 text-amber-600 dark:text-amber-400" /> : <FileText className="h-5 w-5 text-brand-600 dark:text-brand-400" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-surface-800 truncate">{d.subject}</p>
+                    <p className="text-sm font-medium text-surface-800 dark:text-surface-200 truncate">{d.subject}</p>
                     <StatusBadge status={expired && d.status === 'sent' ? 'expired' : d.status} />
                   </div>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-surface-500">
+                  <div className="flex items-center gap-3 mt-1 text-xs text-surface-500 dark:text-surface-400">
                     <span>{fileCount}ファイル ({formatFileSize(totalSize)})</span>
                     <span>{recipientCount}件の宛先</span>
                     <span>{formatRelativeTime(d.created_at)}</span>
                   </div>
                 </div>
                 <div className="hidden sm:flex flex-col items-end gap-1">
-                  <div className="flex items-center gap-1 text-xs text-surface-500">
+                  <div className="flex items-center gap-1 text-xs text-surface-500 dark:text-surface-400">
                     <Eye className="h-3.5 w-3.5" />
                     <span>{downloadedCount}/{recipientCount} DL</span>
                   </div>
                   {!expired && expDays <= 3 && (
-                    <span className="text-xs text-amber-600 font-medium">残り{expDays}日</span>
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">残り{expDays}日</span>
                   )}
                 </div>
-                <ChevronRight className="h-5 w-5 text-surface-300 group-hover:text-surface-500 transition-colors" />
+                <ChevronRight className="h-5 w-5 text-surface-300 dark:text-surface-600 group-hover:text-surface-500 dark:group-hover:text-surface-400 transition-colors" />
               </Link>
             );
           })}

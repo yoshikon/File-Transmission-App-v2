@@ -94,7 +94,7 @@ export default function ContactsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-surface-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-surface-400 dark:text-surface-500" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="名前・メール・会社名で検索..." className="input-field pl-10 py-2" />
         </div>
         <div className="flex items-center gap-2">
@@ -106,12 +106,12 @@ export default function ContactsPage() {
 
       {allTags.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <Tag className="h-4 w-4 text-surface-400" />
-          <button onClick={() => setSelectedTag('')} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${!selectedTag ? 'bg-brand-600 text-white' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'}`}>
+          <Tag className="h-4 w-4 text-surface-400 dark:text-surface-500" />
+          <button onClick={() => setSelectedTag('')} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${!selectedTag ? 'bg-brand-600 text-white' : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-700 dark:text-surface-300 dark:hover:bg-surface-600'}`}>
             すべて
           </button>
           {allTags.map((tag) => (
-            <button key={tag} onClick={() => setSelectedTag(tag === selectedTag ? '' : tag)} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedTag === tag ? 'bg-brand-600 text-white' : 'bg-surface-100 text-surface-600 hover:bg-surface-200'}`}>
+            <button key={tag} onClick={() => setSelectedTag(tag === selectedTag ? '' : tag)} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedTag === tag ? 'bg-brand-600 text-white' : 'bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-700 dark:text-surface-300 dark:hover:bg-surface-600'}`}>
               {tag}
             </button>
           ))}
@@ -124,8 +124,8 @@ export default function ContactsPage() {
         </div>
       ) : contacts.length === 0 ? (
         <div className="text-center py-20">
-          <Mail className="h-12 w-12 text-surface-300 mx-auto mb-4" />
-          <p className="text-surface-500 mb-2">アドレス帳にまだ連絡先がありません</p>
+          <Mail className="h-12 w-12 text-surface-300 dark:text-surface-600 mx-auto mb-4" />
+          <p className="text-surface-500 dark:text-surface-400 mb-2">アドレス帳にまだ連絡先がありません</p>
           <button onClick={() => openForm()} className="btn-primary text-sm mt-2">
             <Plus className="h-4 w-4" /> 最初の連絡先を追加
           </button>
@@ -136,13 +136,13 @@ export default function ContactsPage() {
             <div key={c.id} className="card p-5 hover:shadow-md transition-shadow group">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-brand-600 font-semibold text-sm">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-semibold text-sm">
                     {c.name.slice(0, 2)}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-surface-800">{c.name}</p>
+                    <p className="text-sm font-semibold text-surface-800 dark:text-surface-200">{c.name}</p>
                     {c.company && (
-                      <p className="text-xs text-surface-500 flex items-center gap-1 mt-0.5">
+                      <p className="text-xs text-surface-500 dark:text-surface-400 flex items-center gap-1 mt-0.5">
                         <Building2 className="h-3 w-3" /> {c.company}
                       </p>
                     )}
@@ -150,11 +150,11 @@ export default function ContactsPage() {
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openForm(c)} className="btn-ghost p-1.5"><Edit2 className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => handleDelete(c.id)} className="btn-ghost p-1.5 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => handleDelete(c.id)} className="btn-ghost p-1.5 hover:text-red-500 dark:hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
-              <p className="text-sm text-surface-600 flex items-center gap-1.5 mb-2">
-                <Mail className="h-3.5 w-3.5 text-surface-400" /> {c.email}
+              <p className="text-sm text-surface-600 dark:text-surface-300 flex items-center gap-1.5 mb-2">
+                <Mail className="h-3.5 w-3.5 text-surface-400 dark:text-surface-500" /> {c.email}
               </p>
               {c.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -172,24 +172,24 @@ export default function ContactsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
           <div className="card w-full max-w-lg p-6 animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-surface-800">{editingContact ? '連絡先を編集' : '新規連絡先'}</h3>
+              <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-100">{editingContact ? '連絡先を編集' : '新規連絡先'}</h3>
               <button onClick={() => setShowForm(false)} className="btn-ghost p-1"><X className="h-5 w-5" /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1">氏名</label>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">氏名</label>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="田中 太郎" className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1">メールアドレス</label>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">メールアドレス</label>
                 <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1">会社名</label>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">会社名</label>
                 <input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="株式会社サンプル" className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-surface-700 mb-1">タグ（カンマ区切り）</label>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">タグ（カンマ区切り）</label>
                 <input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="営業, VIP" className="input-field" />
               </div>
             </div>
