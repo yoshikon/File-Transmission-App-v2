@@ -93,19 +93,27 @@ export default function Sidebar({ collapsed, onToggle, onClose, mobileOpen }: Si
         <div className="flex flex-col border-b border-surface-200">
           <Link
             to="/dashboard"
-            className={`flex items-center justify-center px-4 transition-all duration-300 ${collapsed ? 'py-3' : 'py-4'}`}
+            className={`flex items-center justify-center px-4 overflow-hidden transition-all duration-300 ${
+              collapsed ? 'h-0 py-0 lg:h-0 lg:py-0' : 'py-4'
+            }`}
           >
             <img
               src={logo}
               alt="Design Studio A"
-              className={`object-contain transition-all duration-300 ${collapsed ? 'h-8' : 'h-12'}`}
+              className={`object-contain transition-all duration-300 ${
+                collapsed ? 'h-0 opacity-0 lg:h-0 lg:opacity-0' : 'h-12'
+              }`}
             />
           </Link>
 
-          <div className="flex h-14 items-center justify-between px-4">
-            <Link to="/dashboard" className="flex items-center gap-2.5 overflow-hidden">
+          <div className={`flex items-center justify-between px-4 transition-all duration-300 ${
+            collapsed ? 'h-16' : 'h-14'
+          }`}>
+            <Link to="/dashboard" className={`flex items-center gap-2.5 overflow-hidden ${
+              collapsed ? 'lg:hidden' : ''
+            }`}>
               <Shield className="h-6 w-6 shrink-0 text-brand-600" />
-              <span className={`whitespace-nowrap text-lg font-bold text-brand-600 transition-all duration-300 ${collapsed ? 'lg:w-0 lg:opacity-0' : ''}`}>
+              <span className="whitespace-nowrap text-lg font-bold text-brand-600">
                 SecureShare
               </span>
             </Link>
