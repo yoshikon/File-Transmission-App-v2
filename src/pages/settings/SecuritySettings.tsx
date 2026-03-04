@@ -14,6 +14,10 @@ export default function SecuritySettings() {
 
   const handlePasswordChange = async () => {
     setPwResult(null);
+    if (!currentPw) {
+      setPwResult({ type: 'error', msg: '現在のパスワードを入力してください' });
+      return;
+    }
     if (newPw.length < 6) {
       setPwResult({ type: 'error', msg: 'パスワードは6文字以上で入力してください' });
       return;
@@ -23,6 +27,25 @@ export default function SecuritySettings() {
       return;
     }
     setChangingPw(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) {
+      setChangingPw(false);
+      setPwResult({ type: 'error', msg: 'ユーザー情報の取得に失敗しました' });
+      return;
+    }
+
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPw,
+    });
+
+    if (verifyError) {
+      setChangingPw(false);
+      setPwResult({ type: 'error', msg: '現在のパスワードが正しくありません' });
+      return;
+    }
+
     const { error } = await supabase.auth.updateUser({ password: newPw });
     setChangingPw(false);
     if (error) {

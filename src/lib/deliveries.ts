@@ -80,6 +80,29 @@ export async function createDelivery(
     }
   }
 
+  if (form.passwordProtected && form.password) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-password`;
+        await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'hash',
+            password: form.password,
+            delivery_id: delivery.id,
+          }),
+        });
+      }
+    } catch {
+      return { data: null, error: 'パスワードの保存に失敗しました' };
+    }
+  }
+
   const fullDelivery = await fetchDeliveryById(delivery.id);
   return { data: fullDelivery, error: null };
 }

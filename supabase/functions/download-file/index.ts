@@ -20,6 +20,7 @@ interface Delivery {
   expires_at: string;
   download_limit: number | null;
   password_protected: boolean;
+  password_hash: string | null;
 }
 
 interface Recipient {
@@ -65,7 +66,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: delivery } = await supabase
       .from('deliveries')
-      .select('id, status, expires_at, download_limit, password_protected')
+      .select('id, status, expires_at, download_limit, password_protected, password_hash')
       .eq('id', recipientData.delivery_id)
       .maybeSingle();
 
@@ -90,6 +91,28 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: 'Link expired' }),
         { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (deliveryTyped.password_protected && deliveryTyped.password_hash) {
+      const passwordHeader = req.headers.get('X-Download-Password');
+      if (!passwordHeader) {
+        return new Response(
+          JSON.stringify({ error: 'Password required', code: 'PASSWORD_REQUIRED' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      const [salt, storedHash] = deliveryTyped.password_hash.split(':');
+      const encoder = new TextEncoder();
+      const data = encoder.encode(salt + passwordHeader);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = new Uint8Array(hashBuffer);
+      const inputHash = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (inputHash !== storedHash) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid password', code: 'INVALID_PASSWORD' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const { data: fileData } = await supabase

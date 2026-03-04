@@ -27,6 +27,8 @@ export default function RecipientDownloadPage() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [authenticated, setAuthenticated] = useState(true);
   const [passwordInput, setPasswordInput] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     if (!token) {
@@ -110,7 +112,12 @@ export default function RecipientDownloadPage() {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const downloadUrl = `${supabaseUrl}/functions/v1/download-file?delivery_token=${token}&file_token=${file.file_token}`;
 
-      const response = await fetch(downloadUrl);
+      const headers: Record<string, string> = {};
+      if (delivery?.password_protected && passwordInput) {
+        headers['X-Download-Password'] = passwordInput;
+      }
+
+      const response = await fetch(downloadUrl, { headers });
 
       if (!response.ok) {
         throw new Error('Download failed');
@@ -143,7 +150,12 @@ export default function RecipientDownloadPage() {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const downloadUrl = `${supabaseUrl}/functions/v1/download-zip?delivery_token=${token}`;
 
-      const response = await fetch(downloadUrl);
+      const headers: Record<string, string> = {};
+      if (delivery?.password_protected && passwordInput) {
+        headers['X-Download-Password'] = passwordInput;
+      }
+
+      const response = await fetch(downloadUrl, { headers });
 
       if (!response.ok) {
         throw new Error('ZIP download failed');
@@ -170,6 +182,34 @@ export default function RecipientDownloadPage() {
     }
   };
 
+  const handleVerifyPassword = async () => {
+    if (!token || !passwordInput.trim()) return;
+    setVerifying(true);
+    setPasswordError('');
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const res = await fetch(`${supabaseUrl}/functions/v1/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify',
+          password: passwordInput,
+          delivery_token: token,
+        }),
+      });
+      const data = await res.json();
+      if (data.verified) {
+        setAuthenticated(true);
+      } else {
+        setPasswordError('パスワードが正しくありません');
+      }
+    } catch {
+      setPasswordError('認証に失敗しました。もう一度お試しください。');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   if (!authenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-surface-100 to-surface-50 flex items-center justify-center p-4">
@@ -182,12 +222,20 @@ export default function RecipientDownloadPage() {
           <input
             type="password"
             value={passwordInput}
-            onChange={(e) => setPasswordInput(e.target.value)}
+            onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(''); }}
             placeholder="パスワードを入力"
             className="input-field mb-4"
-            onKeyDown={(e) => e.key === 'Enter' && setAuthenticated(true)}
+            onKeyDown={(e) => e.key === 'Enter' && handleVerifyPassword()}
           />
-          <button onClick={() => setAuthenticated(true)} className="btn-primary w-full">認証</button>
+          {passwordError && (
+            <p className="text-sm text-red-500 mb-4">{passwordError}</p>
+          )}
+          <button onClick={handleVerifyPassword} disabled={verifying || !passwordInput.trim()} className="btn-primary w-full">
+            {verifying ? (
+              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : null}
+            {verifying ? '認証中...' : '認証'}
+          </button>
         </div>
       </div>
     );
