@@ -16,17 +16,69 @@ interface DeliveryFile {
 
 interface Delivery {
   id: string;
+  sender_id: string;
+  subject: string;
   status: string;
   expires_at: string;
   download_limit: number | null;
   password_protected: boolean;
   password_hash: string | null;
+  notify_on_open: boolean;
+  notify_on_download: boolean;
 }
 
 interface Recipient {
   id: string;
   download_count: number;
   file_download_counts: Record<string, number> | null;
+}
+
+async function sendNotificationEmail(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  settingKey: string,
+  subject: string,
+  body: string,
+) {
+  try {
+    const { data: settings } = await supabase
+      .from('notification_settings')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!settings || !(settings as Record<string, unknown>)[settingKey]) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!profile?.email) return;
+
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) return;
+
+    const fromEmail = settings.sender_email || 'onboarding@resend.dev';
+    const fromName = settings.sender_name || 'SecureShare';
+
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: [profile.email],
+        subject,
+        text: body,
+      }),
+    });
+  } catch {
+    // Notification email is best-effort
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -53,7 +105,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: recipientData } = await supabase
       .from('delivery_recipients')
-      .select('id, delivery_id, download_count, file_download_counts')
+      .select('id, delivery_id, download_count, file_download_counts, recipient_email, first_accessed_at')
       .eq('token', deliveryToken)
       .maybeSingle();
 
@@ -66,7 +118,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: delivery } = await supabase
       .from('deliveries')
-      .select('id, status, expires_at, download_limit, password_protected, password_hash')
+      .select('id, sender_id, subject, status, expires_at, download_limit, password_protected, password_hash, notify_on_open, notify_on_download')
       .eq('id', recipientData.delivery_id)
       .maybeSingle();
 
@@ -161,6 +213,7 @@ Deno.serve(async (req: Request) => {
 
     const counts = { ...(recipient.file_download_counts || {}) };
     counts[file.id] = (counts[file.id] || 0) + 1;
+    const isFirstAccess = !recipientData.first_accessed_at;
 
     await supabase
       .from('delivery_recipients')
@@ -170,6 +223,36 @@ Deno.serve(async (req: Request) => {
         first_accessed_at: new Date().toISOString(),
       })
       .eq('id', recipient.id);
+
+    const recipientEmail = recipientData.recipient_email || 'unknown';
+
+    if (deliveryTyped.notify_on_download) {
+      await supabase.from('notifications').insert({
+        user_id: deliveryTyped.sender_id,
+        type: 'download',
+        title: 'ファイルがダウンロードされました',
+        message: `${recipientEmail} が「${deliveryTyped.subject}」の ${file.file_name} をダウンロードしました`,
+        delivery_id: deliveryTyped.id,
+      });
+      await sendNotificationEmail(supabase, deliveryTyped.sender_id, 'email_on_download',
+        `[SecureShare] ダウンロード通知: ${deliveryTyped.subject}`,
+        `${recipientEmail} が「${deliveryTyped.subject}」の ${file.file_name} をダウンロードしました。`
+      );
+    }
+
+    if (isFirstAccess && deliveryTyped.notify_on_open) {
+      await supabase.from('notifications').insert({
+        user_id: deliveryTyped.sender_id,
+        type: 'open',
+        title: 'リンクが開封されました',
+        message: `${recipientEmail} が「${deliveryTyped.subject}」を初めて開きました`,
+        delivery_id: deliveryTyped.id,
+      });
+      await sendNotificationEmail(supabase, deliveryTyped.sender_id, 'email_on_open',
+        `[SecureShare] 開封通知: ${deliveryTyped.subject}`,
+        `${recipientEmail} が「${deliveryTyped.subject}」のダウンロードリンクを初めて開きました。`
+      );
+    }
 
     return new Response(fileBlob, {
       headers: {

@@ -21,7 +21,7 @@ export async function createDelivery(
       notify_on_open: form.notifyOnOpen,
       notify_on_download: form.notifyOnDownload,
       scheduled_at: form.scheduledAt,
-      status: 'sent',
+      status: form.scheduledAt ? 'scheduled' : 'sent',
     })
     .select()
     .single();

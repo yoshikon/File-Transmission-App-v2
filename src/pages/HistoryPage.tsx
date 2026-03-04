@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Download, ChevronRight, FileText, Lock, Eye, Clock, XCircle, Loader2 } from 'lucide-react';
+import { Search, Filter, Download, ChevronRight, FileText, Lock, Eye, Clock, XCircle, Loader2, CalendarClock } from 'lucide-react';
 import { fetchDeliveries } from '../lib/deliveries';
 import { formatDate, formatFileSize, daysUntilExpiry, isExpired } from '../utils/format';
 import type { Delivery, DeliveryStatus } from '../types';
@@ -8,6 +8,7 @@ import type { Delivery, DeliveryStatus } from '../types';
 const statusFilters: { value: string; label: string }[] = [
   { value: 'all', label: 'すべて' },
   { value: 'sent', label: '送信済み' },
+  { value: 'scheduled', label: '予約中' },
   { value: 'expired', label: '期限切れ' },
   { value: 'revoked', label: '無効化' },
 ];
@@ -18,6 +19,7 @@ function StatusBadge({ status, expiresAt }: { status: DeliveryStatus; expiresAt:
 
   const config: Record<string, { label: string; className: string; icon: typeof Clock }> = {
     sent: { label: '送信済み', className: 'badge-info', icon: Eye },
+    scheduled: { label: '予約中', className: 'badge-warning', icon: CalendarClock },
     draft: { label: '下書き', className: 'badge-neutral', icon: FileText },
     expired: { label: '期限切れ', className: 'badge-error', icon: Clock },
     revoked: { label: '無効化', className: 'badge-error', icon: XCircle },

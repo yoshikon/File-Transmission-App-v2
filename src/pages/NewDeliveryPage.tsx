@@ -4,7 +4,7 @@ import {
   Users, Paperclip, MessageSquare, Settings2, CheckCircle2,
   Plus, X, Upload, FileText, Image, FileSpreadsheet, File,
   Calendar, Lock, Bell, Eye, Send, ArrowLeft, ArrowRight, Trash2,
-  AlertCircle, BookUser, Link2, Copy, Mail,
+  AlertCircle, BookUser, Link2, Copy, Mail, Clock,
 } from 'lucide-react';
 import { formatFileSize } from '../utils/format';
 import { buildDownloadUrl, getFileIcon as getEmojiIcon, getExtensionDisplay } from '../utils/file-metadata';
@@ -31,6 +31,12 @@ function getFileTypeIcon(name: string) {
   if (['jpg', 'jpeg', 'png', 'gif', 'svg'].includes(ext)) return <Image className="h-5 w-5 text-teal-500" />;
   if (['xls', 'xlsx', 'csv'].includes(ext)) return <FileSpreadsheet className="h-5 w-5 text-green-600" />;
   return <File className="h-5 w-5 text-surface-400" />;
+}
+
+function getDefaultScheduledAt(): string {
+  const d = new Date();
+  d.setHours(d.getHours() + 1, 0, 0, 0);
+  return d.toISOString();
 }
 
 export default function NewDeliveryPage() {
@@ -155,17 +161,21 @@ export default function NewDeliveryPage() {
       return;
     }
 
-    setSendingPhase('emailing');
-    try {
-      const result = await sendDeliveryEmails(
-        data,
-        profile?.full_name || '送信者',
-        profile?.department || '',
-        window.location.origin,
-      );
-      setEmailResult(result);
-    } catch {
+    if (form.scheduledAt) {
       setEmailResult({ total: 0, sent: 0, failed: 0, results: [] });
+    } else {
+      setSendingPhase('emailing');
+      try {
+        const result = await sendDeliveryEmails(
+          data,
+          profile?.full_name || '送信者',
+          profile?.department || '',
+          window.location.origin,
+        );
+        setEmailResult(result);
+      } catch {
+        setEmailResult({ total: 0, sent: 0, failed: 0, results: [] });
+      }
     }
 
     setSending(false);
@@ -421,6 +431,19 @@ export default function NewDeliveryPage() {
               )}
               <ToggleOption checked={form.notifyOnOpen} onChange={(v) => updateField('notifyOnOpen', v)} icon={Eye} label="開封通知" />
               <ToggleOption checked={form.notifyOnDownload} onChange={(v) => updateField('notifyOnDownload', v)} icon={Bell} label="ダウンロード通知" />
+              <ToggleOption checked={!!form.scheduledAt} onChange={(v) => updateField('scheduledAt', v ? getDefaultScheduledAt() : null)} icon={Clock} label="予約送信" />
+              {form.scheduledAt && (
+                <div className="ml-14">
+                  <input
+                    type="datetime-local"
+                    value={form.scheduledAt.slice(0, 16)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    onChange={(e) => updateField('scheduledAt', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                    className="input-field w-auto"
+                  />
+                  <p className="text-xs text-surface-500 dark:text-surface-400 mt-1">指定した日時にメールが自動送信されます</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -453,6 +476,9 @@ export default function NewDeliveryPage() {
               <SummaryRow label="有効期限" value={`${form.expiresInDays}日間`} />
               <SummaryRow label="DL回数制限" value={form.downloadLimit ? `${form.downloadLimit}回` : '無制限'} />
               <SummaryRow label="パスワード保護" value={form.passwordProtected ? 'あり' : 'なし'} />
+              {form.scheduledAt && (
+                <SummaryRow label="予約送信" value={new Date(form.scheduledAt).toLocaleString('ja-JP')} />
+              )}
             </div>
 
             <div className="rounded-lg border border-surface-200 dark:border-surface-700 p-4">
@@ -499,7 +525,7 @@ export default function NewDeliveryPage() {
                 </div>
               ) : (
                 <>
-                  <Send className="h-4 w-4" /> 送信する
+                  {form.scheduledAt ? <Clock className="h-4 w-4" /> : <Send className="h-4 w-4" />} {form.scheduledAt ? '予約送信する' : '送信する'}
                 </>
               )}
             </button>
@@ -579,18 +605,23 @@ function SendCompletionScreen({
   return (
     <div className="max-w-3xl mx-auto py-8 animate-fade-in">
       <div className="text-center mb-8">
-        <div className={`rounded-full p-6 mx-auto w-fit mb-6 ${allSent ? 'bg-emerald-100 dark:bg-emerald-900/20' : someFailed ? 'bg-amber-100 dark:bg-amber-900/20' : 'bg-emerald-100 dark:bg-emerald-900/20'}`}>
-          {someFailed ? (
+        <div className={`rounded-full p-6 mx-auto w-fit mb-6 ${delivery.scheduled_at ? 'bg-blue-100 dark:bg-blue-900/20' : allSent ? 'bg-emerald-100 dark:bg-emerald-900/20' : someFailed ? 'bg-amber-100 dark:bg-amber-900/20' : 'bg-emerald-100 dark:bg-emerald-900/20'}`}>
+          {delivery.scheduled_at ? (
+            <Clock className="h-16 w-16 text-blue-600 dark:text-blue-400" />
+          ) : someFailed ? (
             <AlertCircle className="h-16 w-16 text-amber-600 dark:text-amber-400" />
           ) : (
             <CheckCircle2 className={`h-16 w-16 ${allSent ? 'text-emerald-600 dark:text-emerald-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
           )}
         </div>
         <h2 className="text-2xl font-bold text-surface-800 dark:text-surface-100 mb-2">
-          {someFailed ? '送信完了（一部エラー）' : '送信完了'}
+          {delivery.scheduled_at ? '予約送信を設定しました' : someFailed ? '送信完了（一部エラー）' : '送信完了'}
         </h2>
         <p className="text-surface-500 dark:text-surface-400">
-          {recipients.length}件の宛先にダウンロードリンクを発行しました
+          {delivery.scheduled_at
+            ? `${recipients.length}件の宛先に ${new Date(delivery.scheduled_at).toLocaleString('ja-JP')} にメールが送信されます`
+            : `${recipients.length}件の宛先にダウンロードリンクを発行しました`
+          }
         </p>
       </div>
 

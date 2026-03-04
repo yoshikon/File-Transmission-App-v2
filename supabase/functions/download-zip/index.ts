@@ -16,12 +16,15 @@ interface DeliveryFile {
 
 interface Delivery {
   id: string;
+  sender_id: string;
+  subject: string;
   status: string;
   expires_at: string;
   download_limit: number | null;
   password_protected: boolean;
   password_hash: string | null;
-  subject: string;
+  notify_on_open: boolean;
+  notify_on_download: boolean;
 }
 
 interface Recipient {
@@ -69,6 +72,54 @@ class BlobReader {
   }
 }
 
+async function sendNotificationEmail(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  settingKey: string,
+  subject: string,
+  body: string,
+) {
+  try {
+    const { data: settings } = await supabase
+      .from('notification_settings')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!settings || !(settings as Record<string, unknown>)[settingKey]) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!profile?.email) return;
+
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) return;
+
+    const fromEmail = settings.sender_email || 'onboarding@resend.dev';
+    const fromName = settings.sender_name || 'SecureShare';
+
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: [profile.email],
+        subject,
+        text: body,
+      }),
+    });
+  } catch {
+    // best-effort
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -92,7 +143,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: recipientData } = await supabase
       .from('delivery_recipients')
-      .select('id, delivery_id, download_count, file_download_counts')
+      .select('id, delivery_id, download_count, file_download_counts, recipient_email, first_accessed_at')
       .eq('token', deliveryToken)
       .maybeSingle();
 
@@ -105,7 +156,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: delivery } = await supabase
       .from('deliveries')
-      .select('id, status, expires_at, download_limit, password_protected, password_hash, subject')
+      .select('id, sender_id, subject, status, expires_at, download_limit, password_protected, password_hash, notify_on_open, notify_on_download')
       .eq('id', recipientData.delivery_id)
       .maybeSingle();
 
@@ -209,6 +260,38 @@ Deno.serve(async (req: Request) => {
 
     await zipWriter.close();
     const zipBlob = blobWriter.getData();
+
+    const recipientEmail = recipientData.recipient_email || 'unknown';
+    const isFirstAccess = !recipientData.first_accessed_at;
+    const fileNames = files.map((f) => f.file_name).join(', ');
+
+    if (deliveryTyped.notify_on_download) {
+      await supabase.from('notifications').insert({
+        user_id: deliveryTyped.sender_id,
+        type: 'download',
+        title: 'ファイルが一括ダウンロードされました',
+        message: `${recipientEmail} が「${deliveryTyped.subject}」の全ファイルをZIPでダウンロードしました`,
+        delivery_id: deliveryTyped.id,
+      });
+      await sendNotificationEmail(supabase, deliveryTyped.sender_id, 'email_on_download',
+        `[SecureShare] 一括ダウンロード通知: ${deliveryTyped.subject}`,
+        `${recipientEmail} が「${deliveryTyped.subject}」の全ファイル (${fileNames}) をZIPで一括ダウンロードしました。`
+      );
+    }
+
+    if (isFirstAccess && deliveryTyped.notify_on_open) {
+      await supabase.from('notifications').insert({
+        user_id: deliveryTyped.sender_id,
+        type: 'open',
+        title: 'リンクが開封されました',
+        message: `${recipientEmail} が「${deliveryTyped.subject}」を初めて開きました`,
+        delivery_id: deliveryTyped.id,
+      });
+      await sendNotificationEmail(supabase, deliveryTyped.sender_id, 'email_on_open',
+        `[SecureShare] 開封通知: ${deliveryTyped.subject}`,
+        `${recipientEmail} が「${deliveryTyped.subject}」のダウンロードリンクを初めて開きました。`
+      );
+    }
 
     const zipFilename = `${deliveryTyped.subject.replace(/[^a-zA-Z0-9-_]/g, '_')}_files.zip`;
 

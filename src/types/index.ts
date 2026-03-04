@@ -1,6 +1,6 @@
 export type UserRole = 'super_admin' | 'sender';
 export type RecipientType = 'to' | 'cc' | 'bcc';
-export type DeliveryStatus = 'draft' | 'sent' | 'expired' | 'revoked';
+export type DeliveryStatus = 'draft' | 'sent' | 'scheduled' | 'expired' | 'revoked';
 export type DownloadType = 'individual' | 'bulk';
 
 export interface Profile {
