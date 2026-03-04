@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Shield, Lock, Eye, EyeOff, ArrowRight, X } from 'lucide-react';
+import { Shield, Lock, Eye, EyeOff, ArrowRight, X, Loader2, AlertCircle } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 export default function RecipientRegisterPage() {
   const { token } = useParams();
@@ -12,6 +13,32 @@ export default function RecipientRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [pageLoading, setPageLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!token) {
+      navigate('/d/invalid');
+      return;
+    }
+    loadRecipientInfo();
+  }, [token]);
+
+  const loadRecipientInfo = async () => {
+    const { data } = await supabase
+      .from('delivery_recipients')
+      .select('recipient_email')
+      .eq('token', token!)
+      .maybeSingle();
+
+    if (!data) {
+      navigate('/d/invalid');
+      return;
+    }
+    setRecipientEmail(data.recipient_email);
+    setPageLoading(false);
+  };
 
   const strength = password.length >= 12 ? 3 : password.length >= 8 ? 2 : password.length >= 4 ? 1 : 0;
   const strengthLabels = ['', '弱い', '普通', '強い'];
@@ -20,11 +47,47 @@ export default function RecipientRegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid) return;
+    if (!valid || !token) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    navigate(`/d/${token}`);
+    setError('');
+
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const res = await fetch(`${supabaseUrl}/functions/v1/verify-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'register',
+          password,
+          delivery_token: token,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.error || '登録に失敗しました。もう一度お試しください。');
+        setLoading(false);
+        return;
+      }
+
+      navigate(`/d/${token}`);
+    } catch {
+      setError('ネットワークエラーが発生しました。もう一度お試しください。');
+      setLoading(false);
+    }
   };
+
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-surface-100 to-surface-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+          <p className="text-sm text-surface-500">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-surface-100 to-surface-50 flex items-center justify-center p-4">
@@ -40,8 +103,15 @@ export default function RecipientRegisterPage() {
 
           <div className="bg-surface-50 rounded-lg p-3 mb-6 text-sm">
             <span className="text-surface-500">メールアドレス:</span>
-            <span className="ml-2 font-medium text-surface-800">tanaka@client.co.jp</span>
+            <span className="ml-2 font-medium text-surface-800">{recipientEmail}</span>
           </div>
+
+          {error && (
+            <div className="flex items-center gap-2 mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

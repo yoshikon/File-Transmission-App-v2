@@ -167,8 +167,95 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (action === "register") {
+      const { password, delivery_token } = body;
+
+      if (!password || !delivery_token) {
+        return new Response(
+          JSON.stringify({ error: "password and delivery_token are required" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+      const { data: recipientData } = await supabase
+        .from("delivery_recipients")
+        .select("recipient_email, delivery_id")
+        .eq("token", delivery_token)
+        .maybeSingle();
+
+      if (!recipientData) {
+        return new Response(
+          JSON.stringify({ error: "Invalid token", success: false }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const salt = generateSalt();
+      const hash = await hashPassword(password, salt);
+      const passwordHash = `${salt}:${hash}`;
+
+      const { data: existingRecipient } = await supabase
+        .from("recipients")
+        .select("id")
+        .eq("email", recipientData.recipient_email)
+        .maybeSingle();
+
+      if (existingRecipient) {
+        const { error: updateErr } = await supabase
+          .from("recipients")
+          .update({ password_hash: passwordHash, registered: true })
+          .eq("id", existingRecipient.id);
+
+        if (updateErr) {
+          return new Response(
+            JSON.stringify({ error: "Failed to update recipient", success: false }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+      } else {
+        const { error: insertErr } = await supabase
+          .from("recipients")
+          .insert({
+            email: recipientData.recipient_email,
+            password_hash: passwordHash,
+            registered: true,
+          });
+
+        if (insertErr) {
+          return new Response(
+            JSON.stringify({ error: "Failed to register recipient", success: false }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, email: recipientData.recipient_email }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: "Invalid action. Use 'hash' or 'verify'" }),
+      JSON.stringify({ error: "Invalid action. Use 'hash', 'verify', or 'register'" }),
       {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
