@@ -88,9 +88,10 @@ export default function Sidebar({ collapsed, onToggle, onClose, mobileOpen }: Si
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-surface-200 bg-white transition-all duration-300
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} w-64
-          lg:relative lg:translate-x-0 ${collapsed ? 'lg:w-[4.5rem]' : 'lg:w-64'}`}
+          lg:relative lg:translate-x-0 ${collapsed ? 'lg:w-[4.5rem]' : 'lg:w-64'}
+          dark:border-surface-700 dark:bg-surface-900`}
       >
-        <div className="flex flex-col border-b border-surface-200">
+        <div className="flex flex-col border-b border-surface-200 dark:border-surface-700">
           <Link
             to="/dashboard"
             className={`flex items-center justify-center px-4 overflow-hidden transition-all duration-300 ${
@@ -117,10 +118,10 @@ export default function Sidebar({ collapsed, onToggle, onClose, mobileOpen }: Si
                 SecureShare
               </span>
             </Link>
-            <button onClick={onClose} className="rounded-md p-1 text-surface-400 hover:bg-surface-100 lg:hidden">
+            <button onClick={onClose} className="rounded-md p-1 text-surface-400 hover:bg-surface-100 dark:text-surface-500 dark:hover:bg-surface-800 lg:hidden">
               <X className="h-5 w-5" />
             </button>
-            <button onClick={onToggle} className={`hidden rounded-md p-1 text-surface-400 hover:bg-surface-100 lg:block ${collapsed ? 'lg:mx-auto' : ''}`}>
+            <button onClick={onToggle} className={`hidden rounded-md p-1 text-surface-400 hover:bg-surface-100 dark:text-surface-500 dark:hover:bg-surface-800 lg:block ${collapsed ? 'lg:mx-auto' : ''}`}>
               {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
             </button>
           </div>
@@ -135,9 +136,9 @@ export default function Sidebar({ collapsed, onToggle, onClose, mobileOpen }: Si
                 to={to}
                 onClick={onClose}
                 title={collapsed ? label : undefined}
-                className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${active ? 'bg-brand-50 text-brand-600' : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'}`}
+                className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${active ? 'bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400' : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-200'}`}
               >
-                <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-brand-600' : 'text-surface-400 group-hover:text-surface-600'}`} />
+                <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-brand-600 dark:text-brand-400' : 'text-surface-400 group-hover:text-surface-600 dark:text-surface-500 dark:group-hover:text-surface-300'}`} />
                 <span className={`whitespace-nowrap transition-all duration-300 ${collapsed ? 'lg:w-0 lg:overflow-hidden lg:opacity-0' : ''}`}>
                   {label}
                 </span>
@@ -146,23 +147,23 @@ export default function Sidebar({ collapsed, onToggle, onClose, mobileOpen }: Si
           })}
         </nav>
 
-        <div className="relative border-t border-surface-200 p-3" ref={menuRef}>
+        <div className="relative border-t border-surface-200 dark:border-surface-700 p-3" ref={menuRef}>
           {menuOpen && (
-            <div className="absolute bottom-full left-2 right-2 mb-1 rounded-xl border border-surface-200 bg-white py-1.5 shadow-lg animate-fade-in">
+            <div className="absolute bottom-full left-2 right-2 mb-1 rounded-xl border border-surface-200 bg-white py-1.5 shadow-lg animate-fade-in dark:border-surface-700 dark:bg-surface-800">
               {userMenuItems.map(({ tab, label, icon: Icon }) => (
                 <button
                   key={tab}
                   onClick={() => handleMenuNav(tab)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 transition-colors"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 transition-colors dark:text-surface-300 dark:hover:bg-surface-700"
                 >
-                  <Icon className="h-4 w-4 text-surface-400" />
+                  <Icon className="h-4 w-4 text-surface-400 dark:text-surface-500" />
                   {label}
                 </button>
               ))}
-              <div className="my-1.5 border-t border-surface-100" />
+              <div className="my-1.5 border-t border-surface-100 dark:border-surface-700" />
               <button
                 onClick={handleSignOut}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors dark:text-red-400 dark:hover:bg-red-900/20"
               >
                 <LogOut className="h-4 w-4" />
                 ログアウト
@@ -173,14 +174,14 @@ export default function Sidebar({ collapsed, onToggle, onClose, mobileOpen }: Si
           <button
             onClick={() => setMenuOpen((v) => !v)}
             title={collapsed ? (profile?.full_name || 'ユーザー') : undefined}
-            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-50 ${collapsed ? 'lg:justify-center' : ''}`}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-50 dark:hover:bg-surface-800 ${collapsed ? 'lg:justify-center' : ''}`}
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">
               {initials}
             </div>
             <div className={`min-w-0 flex-1 text-left transition-all duration-300 ${collapsed ? 'lg:hidden' : ''}`}>
-              <p className="truncate text-sm font-medium text-surface-800">{profile?.full_name || 'ユーザー'}</p>
-              <p className="truncate text-xs text-surface-500">{profile?.email}</p>
+              <p className="truncate text-sm font-medium text-surface-800 dark:text-surface-100">{profile?.full_name || 'ユーザー'}</p>
+              <p className="truncate text-xs text-surface-500 dark:text-surface-400">{profile?.email}</p>
             </div>
           </button>
         </div>
