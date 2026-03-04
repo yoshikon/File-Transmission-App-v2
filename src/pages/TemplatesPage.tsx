@@ -1,14 +1,37 @@
-import { useState } from 'react';
-import { Plus, CreditCard as Edit2, Trash2, Eye, Share2, FileText, X } from 'lucide-react';
-import { mockTemplates } from '../utils/mock-data';
+import { useState, useEffect } from 'react';
+import { Plus, CreditCard as Edit2, Trash2, Eye, Share2, FileText, X, AlertCircle } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { fetchTemplates, createTemplate, updateTemplate, deleteTemplate } from '../lib/templates';
 import type { EmailTemplate } from '../types';
 
 export default function TemplatesPage() {
-  const [templates, setTemplates] = useState<EmailTemplate[]>(mockTemplates);
+  const { user } = useAuth();
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<EmailTemplate | null>(null);
   const [preview, setPreview] = useState<EmailTemplate | null>(null);
   const [form, setForm] = useState({ name: '', subject: '', body: '', is_shared: false });
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      loadTemplates();
+    }
+  }, [user]);
+
+  const loadTemplates = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await fetchTemplates(user.id);
+    if (data) {
+      setTemplates(data);
+    } else if (error) {
+      setError(error);
+    }
+    setLoading(false);
+  };
 
   const openForm = (t?: EmailTemplate) => {
     if (t) {
@@ -19,24 +42,51 @@ export default function TemplatesPage() {
       setForm({ name: '', subject: '', body: '', is_shared: false });
     }
     setShowForm(true);
+    setError(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+    setError(null);
+
     if (editing) {
-      setTemplates(templates.map((t) => t.id === editing.id ? { ...t, ...form } : t));
+      const { data, error } = await updateTemplate(editing.id, form);
+      if (data) {
+        setTemplates(templates.map((t) => t.id === editing.id ? data : t));
+        setShowForm(false);
+      } else if (error) {
+        setError(error);
+      }
     } else {
-      setTemplates([{
-        id: crypto.randomUUID(),
-        user_id: 'user-1',
-        name: form.name,
-        subject: form.subject,
-        body: form.body,
-        is_shared: form.is_shared,
-        created_at: new Date().toISOString(),
-      }, ...templates]);
+      const { data, error } = await createTemplate(user.id, form);
+      if (data) {
+        setTemplates([data, ...templates]);
+        setShowForm(false);
+      } else if (error) {
+        setError(error);
+      }
     }
-    setShowForm(false);
+    setSaving(false);
   };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('このテンプレートを削除しますか?')) return;
+    const { error } = await deleteTemplate(id);
+    if (!error) {
+      setTemplates(templates.filter((t) => t.id !== id));
+    } else {
+      setError(error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="h-8 w-8 border-3 border-brand-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -45,34 +95,70 @@ export default function TemplatesPage() {
         <button onClick={() => openForm()} className="btn-primary text-sm"><Plus className="h-4 w-4" /> 新規作成</button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {templates.map((t) => (
-          <div key={t.id} className="card p-5 hover:shadow-md transition-shadow group">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-brand-50 p-2">
-                  <FileText className="h-5 w-5 text-brand-600" />
+      {error && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-4 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {templates.length === 0 ? (
+        <div className="card p-12 text-center">
+          <FileText className="h-12 w-12 text-surface-300 mx-auto mb-4" />
+          <p className="text-surface-600 font-medium mb-2">テンプレートがありません</p>
+          <p className="text-sm text-surface-400 mb-6">よく使うメッセージをテンプレートとして保存できます</p>
+          <button onClick={() => openForm()} className="btn-primary mx-auto">
+            <Plus className="h-4 w-4" /> 最初のテンプレートを作成
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {templates.map((t) => {
+            const isOwned = user && t.user_id === user.id;
+            return (
+              <div key={t.id} className="card p-5 hover:shadow-md transition-shadow group">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-brand-50 p-2">
+                      <FileText className="h-5 w-5 text-brand-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-surface-800">{t.name}</p>
+                      {t.is_shared && (
+                        <span className="inline-flex items-center gap-1 text-xs text-surface-400 mt-0.5">
+                          <Share2 className="h-3 w-3" /> 共有
+                        </span>
+                      )}
+                      {!isOwned && (
+                        <span className="inline-flex items-center gap-1 text-xs text-surface-400 mt-0.5">
+                          他のユーザーのテンプレート
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => setPreview(t)} className="btn-ghost p-1.5" title="プレビュー">
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                    {isOwned && (
+                      <>
+                        <button onClick={() => openForm(t)} className="btn-ghost p-1.5" title="編集">
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(t.id)} className="btn-ghost p-1.5 hover:text-red-500" title="削除">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-surface-800">{t.name}</p>
-                  {t.is_shared && (
-                    <span className="inline-flex items-center gap-1 text-xs text-surface-400 mt-0.5">
-                      <Share2 className="h-3 w-3" /> 共有
-                    </span>
-                  )}
-                </div>
+                <p className="text-xs text-surface-500 mb-2">件名: {t.subject}</p>
+                <p className="text-xs text-surface-400 line-clamp-3">{t.body}</p>
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => setPreview(t)} className="btn-ghost p-1.5"><Eye className="h-3.5 w-3.5" /></button>
-                <button onClick={() => openForm(t)} className="btn-ghost p-1.5"><Edit2 className="h-3.5 w-3.5" /></button>
-                <button onClick={() => setTemplates(templates.filter((x) => x.id !== t.id))} className="btn-ghost p-1.5 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
-              </div>
-            </div>
-            <p className="text-xs text-surface-500 mb-2">件名: {t.subject}</p>
-            <p className="text-xs text-surface-400 line-clamp-3">{t.body}</p>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowForm(false)}>
@@ -99,9 +185,19 @@ export default function TemplatesPage() {
                 <span className="text-sm text-surface-700">全スタッフと共有</span>
               </label>
             </div>
+            {error && (
+              <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowForm(false)} className="btn-secondary">キャンセル</button>
-              <button onClick={handleSave} disabled={!form.name || !form.subject} className="btn-primary">保存</button>
+              <button onClick={() => setShowForm(false)} className="btn-secondary" disabled={saving}>
+                キャンセル
+              </button>
+              <button onClick={handleSave} disabled={!form.name || !form.subject || saving} className="btn-primary">
+                {saving ? '保存中...' : '保存'}
+              </button>
             </div>
           </div>
         </div>

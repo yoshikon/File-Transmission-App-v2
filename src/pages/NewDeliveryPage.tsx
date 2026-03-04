@@ -13,7 +13,8 @@ import { createDelivery } from '../lib/deliveries';
 import { sendDeliveryEmails, type EmailSendResult } from '../lib/email';
 import ContactPickerModal from '../components/ContactPickerModal';
 import EmailPreview from '../components/EmailPreview';
-import type { Delivery, DeliveryFormData, RecipientType, DeliveryFile } from '../types';
+import TemplatePickerModal from '../components/TemplatePickerModal';
+import type { Delivery, DeliveryFormData, RecipientType, DeliveryFile, EmailTemplate } from '../types';
 
 const steps = [
   { id: 1, label: '宛先設定', icon: Users },
@@ -45,6 +46,7 @@ export default function NewDeliveryPage() {
   const [copiedFileUrl, setCopiedFileUrl] = useState('');
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [contactPickerTarget, setContactPickerTarget] = useState<number | null>(null);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   const [form, setForm] = useState<DeliveryFormData>({
     recipients: [{ email: '', type: 'to' as RecipientType }],
@@ -130,6 +132,12 @@ export default function NewDeliveryPage() {
 
   const removeFile = (id: string) => {
     updateField('files', form.files.filter((f) => f.id !== id));
+  };
+
+  const handleTemplateSelect = (template: EmailTemplate) => {
+    updateField('subject', template.subject);
+    updateField('message', template.body);
+    updateField('templateId', template.id);
   };
 
   const handleSend = async () => {
@@ -347,7 +355,15 @@ export default function NewDeliveryPage() {
 
         {step === 3 && (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-surface-800">メッセージ作成</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-surface-800">メッセージ作成</h3>
+              <button
+                onClick={() => setShowTemplatePicker(true)}
+                className="btn-secondary text-sm"
+              >
+                <FileText className="h-4 w-4" /> テンプレートから選択
+              </button>
+            </div>
             <div>
               <label className="block text-sm font-medium text-surface-700 mb-1.5">件名</label>
               <input
@@ -495,6 +511,12 @@ export default function NewDeliveryPage() {
           </div>
         )}
       </div>
+
+      <TemplatePickerModal
+        open={showTemplatePicker}
+        onClose={() => setShowTemplatePicker(false)}
+        onSelect={handleTemplateSelect}
+      />
     </div>
   );
 }
