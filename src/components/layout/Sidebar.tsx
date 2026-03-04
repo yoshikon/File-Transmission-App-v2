@@ -101,7 +101,7 @@ export default function Sidebar({ collapsed, onToggle, onClose, mobileOpen }: Si
             <img
               src={logo}
               alt="Design Studio A"
-              className={`object-contain transition-all duration-300 ${
+              className={`object-contain transition-all duration-300 dark:brightness-0 dark:invert ${
                 collapsed ? 'h-0 opacity-0 lg:h-0 lg:opacity-0' : 'h-12'
               }`}
             />
@@ -113,8 +113,8 @@ export default function Sidebar({ collapsed, onToggle, onClose, mobileOpen }: Si
             <Link to="/dashboard" className={`flex items-center gap-2.5 overflow-hidden ${
               collapsed ? 'lg:hidden' : ''
             }`}>
-              <Shield className="h-6 w-6 shrink-0 text-brand-600" />
-              <span className="whitespace-nowrap text-lg font-bold text-brand-600">
+              <Shield className="h-6 w-6 shrink-0 text-brand-600 dark:text-white" />
+              <span className="whitespace-nowrap text-lg font-bold text-brand-600 dark:text-white">
                 SecureShare
               </span>
             </Link>
