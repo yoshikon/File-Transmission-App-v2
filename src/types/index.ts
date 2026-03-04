@@ -118,7 +118,6 @@ export interface DeliveryFormData {
   files: SelectedFile[];
   subject: string;
   message: string;
-  signatureId: string | null;
   templateId: string | null;
   expiresInDays: number;
   downloadLimit: number | null;

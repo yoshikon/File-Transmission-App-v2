@@ -59,7 +59,6 @@ export default function NewDeliveryPage() {
     files: [],
     subject: '',
     message: '',
-    signatureId: null,
     templateId: null,
     expiresInDays: 7,
     downloadLimit: null,

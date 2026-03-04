@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { formatFileSize, formatDate, daysUntilExpiry } from '../../utils/format';
 import { getFileIcon } from '../../utils/file-metadata';
-import { fetchDeliveryByToken, recordDownload } from '../../lib/deliveries';
+import { fetchDeliveryByToken } from '../../lib/deliveries';
 import type { Delivery, DeliveryFile } from '../../types';
 
 function getIcon(name: string) {

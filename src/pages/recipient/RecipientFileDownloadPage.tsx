@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Shield, Download, FileText, CheckCircle2, Loader2, AlertTriangle, XCircle, Clock, Ban } from 'lucide-react';
-import { fetchFileByToken, recordDownload } from '../../lib/deliveries';
+import { fetchFileByToken } from '../../lib/deliveries';
 import { formatFileSize } from '../../utils/format';
 import { getFileIcon, getExtensionDisplay, formatExpiryDisplay } from '../../utils/file-metadata';
 
