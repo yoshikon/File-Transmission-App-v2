@@ -42,13 +42,36 @@ export default function RecipientFileDownloadPage() {
   }, [token, fileToken, navigate]);
 
   const handleDownload = async () => {
+    if (!token || !fileToken) return;
+
     setDownloading(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    if (recipientId && fileId) {
-      await recordDownload(recipientId, fileId, 'individual');
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const downloadUrl = `${supabaseUrl}/functions/v1/download-file?delivery_token=${token}&file_token=${fileToken}`;
+
+      const response = await fetch(downloadUrl);
+
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setDownloaded(true);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('ダウンロードに失敗しました。');
+    } finally {
+      setDownloading(false);
     }
-    setDownloaded(true);
-    setDownloading(false);
   };
 
   if (loading) {

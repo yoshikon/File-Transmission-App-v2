@@ -47,6 +47,22 @@ export async function createDelivery(
   }
 
   if (form.files.length > 0) {
+    for (const file of form.files) {
+      if (!file.file) continue;
+
+      const storagePath = `${delivery.id}/${file.id}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('delivery-files')
+        .upload(storagePath, file.file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        return { data: null, error: `ファイルのアップロードに失敗しました: ${uploadError.message}` };
+      }
+    }
+
     const { error: fileError } = await supabase
       .from('delivery_files')
       .insert(
@@ -56,6 +72,7 @@ export async function createDelivery(
           file_size: f.size,
           mime_type: f.type || null,
           file_extension: getFileExtension(f.name),
+          storage_path: `${delivery.id}/${f.id}_${f.name}`,
         }))
       );
     if (fileError) {

@@ -103,25 +103,71 @@ export default function RecipientDownloadPage() {
   const downloadedCount = downloadedFiles.size;
 
   const handleDownload = async (file: DeliveryFile) => {
+    if (!token) return;
+
     setDownloading(file.id);
-    await new Promise((r) => setTimeout(r, 1500));
-    if (recipientId) {
-      await recordDownload(recipientId, file.id, 'individual');
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const downloadUrl = `${supabaseUrl}/functions/v1/download-file?delivery_token=${token}&file_token=${file.file_token}`;
+
+      const response = await fetch(downloadUrl);
+
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.file_name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setDownloadedFiles((prev) => new Set(prev).add(file.id));
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('ダウンロードに失敗しました。');
+    } finally {
+      setDownloading(null);
     }
-    setDownloadedFiles((prev) => new Set(prev).add(file.id));
-    setDownloading(null);
   };
 
   const handleDownloadAll = async () => {
+    if (!token) return;
+
     setDownloading('all');
-    for (const file of files) {
-      await new Promise((r) => setTimeout(r, 500));
-      if (recipientId) {
-        await recordDownload(recipientId, file.id, 'bulk');
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const downloadUrl = `${supabaseUrl}/functions/v1/download-zip?delivery_token=${token}`;
+
+      const response = await fetch(downloadUrl);
+
+      if (!response.ok) {
+        throw new Error('ZIP download failed');
       }
-      setDownloadedFiles((prev) => new Set(prev).add(file.id));
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${delivery.subject.replace(/[^a-zA-Z0-9-_]/g, '_')}_files.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      files.forEach((f) => {
+        setDownloadedFiles((prev) => new Set(prev).add(f.id));
+      });
+    } catch (error) {
+      console.error('ZIP download error:', error);
+      alert('一括ダウンロードに失敗しました。');
+    } finally {
+      setDownloading(null);
     }
-    setDownloading(null);
   };
 
   if (!authenticated) {
