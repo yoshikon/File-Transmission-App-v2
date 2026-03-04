@@ -10,7 +10,7 @@
   }
 
   body {
-    @apply bg-surface-50 text-surface-800 dark:bg-surface-900 dark:text-surface-100;
+    @apply bg-surface-50 text-surface-800 dark:bg-surface-950 dark:text-surface-100;
     line-height: 1.5;
   }
 
@@ -60,7 +60,7 @@
 
   .card {
     @apply bg-white rounded-xl border border-surface-200 shadow-sm
-           dark:bg-surface-800 dark:border-surface-700;
+           dark:bg-surface-800 dark:border-surface-700/50 dark:shadow-none;
   }
 
   .badge {
@@ -68,23 +68,23 @@
   }
 
   .badge-success {
-    @apply badge bg-emerald-50 text-emerald-700;
+    @apply badge bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400;
   }
 
   .badge-warning {
-    @apply badge bg-amber-50 text-amber-700;
+    @apply badge bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400;
   }
 
   .badge-error {
-    @apply badge bg-red-50 text-red-700;
+    @apply badge bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400;
   }
 
   .badge-info {
-    @apply badge bg-blue-50 text-blue-700;
+    @apply badge bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400;
   }
 
   .badge-neutral {
-    @apply badge bg-surface-100 text-surface-600;
+    @apply badge bg-surface-100 text-surface-600 dark:bg-surface-700 dark:text-surface-300;
   }
 
   .skeleton {

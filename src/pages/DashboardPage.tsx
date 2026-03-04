@@ -15,7 +15,7 @@ function StatCard({ icon: Icon, label, value, color }: {
   color: string;
 }) {
   return (
-    <div className="card p-6 hover:shadow-md transition-shadow">
+    <div className="card p-6 hover:shadow-md dark:hover:shadow-surface-900/50 transition-shadow">
       <div className="flex items-start justify-between">
         <div className={`rounded-xl p-3 ${color}`}>
           <Icon className="h-6 w-6" />

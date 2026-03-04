@@ -21,7 +21,7 @@ export default function SenderLayout() {
   const { title, subtitle } = pageInfo?.[1] ?? { title: 'SecureShare' };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-50">
+    <div className="flex h-screen overflow-hidden bg-surface-50 dark:bg-surface-950">
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed(!collapsed)}
@@ -30,7 +30,7 @@ export default function SenderLayout() {
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header title={title} subtitle={subtitle} onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-surface-50 dark:bg-surface-950">
           <div className="mx-auto max-w-7xl animate-fade-in">
             <Outlet />
           </div>
