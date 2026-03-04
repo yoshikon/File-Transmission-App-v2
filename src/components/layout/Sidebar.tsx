@@ -18,6 +18,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import logo from '../../assets/logo.png';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -89,19 +90,32 @@ export default function Sidebar({ collapsed, onToggle, onClose, mobileOpen }: Si
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} w-64
           lg:relative lg:translate-x-0 ${collapsed ? 'lg:w-[4.5rem]' : 'lg:w-64'}`}
       >
-        <div className="flex h-16 items-center justify-between border-b border-surface-200 px-4">
-          <Link to="/dashboard" className="flex items-center gap-2.5 overflow-hidden">
-            <Shield className="h-7 w-7 shrink-0 text-brand-600" />
-            <span className={`whitespace-nowrap text-lg font-bold text-brand-600 transition-all duration-300 ${collapsed ? 'lg:w-0 lg:opacity-0' : ''}`}>
-              SecureShare
-            </span>
+        <div className="flex flex-col border-b border-surface-200">
+          <Link
+            to="/dashboard"
+            className={`flex items-center justify-center px-4 transition-all duration-300 ${collapsed ? 'py-3' : 'py-4'}`}
+          >
+            <img
+              src={logo}
+              alt="Design Studio A"
+              className={`object-contain transition-all duration-300 ${collapsed ? 'h-8' : 'h-12'}`}
+            />
           </Link>
-          <button onClick={onClose} className="rounded-md p-1 text-surface-400 hover:bg-surface-100 lg:hidden">
-            <X className="h-5 w-5" />
-          </button>
-          <button onClick={onToggle} className={`hidden rounded-md p-1 text-surface-400 hover:bg-surface-100 lg:block ${collapsed ? 'lg:mx-auto' : ''}`}>
-            {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-          </button>
+
+          <div className="flex h-14 items-center justify-between px-4">
+            <Link to="/dashboard" className="flex items-center gap-2.5 overflow-hidden">
+              <Shield className="h-6 w-6 shrink-0 text-brand-600" />
+              <span className={`whitespace-nowrap text-lg font-bold text-brand-600 transition-all duration-300 ${collapsed ? 'lg:w-0 lg:opacity-0' : ''}`}>
+                SecureShare
+              </span>
+            </Link>
+            <button onClick={onClose} className="rounded-md p-1 text-surface-400 hover:bg-surface-100 lg:hidden">
+              <X className="h-5 w-5" />
+            </button>
+            <button onClick={onToggle} className={`hidden rounded-md p-1 text-surface-400 hover:bg-surface-100 lg:block ${collapsed ? 'lg:mx-auto' : ''}`}>
+              {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
