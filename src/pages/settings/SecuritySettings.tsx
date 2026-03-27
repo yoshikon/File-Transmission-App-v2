@@ -291,7 +291,7 @@ function IpRestrictionSection({ userId }: { userId: string }) {
           </button>
         )}
       </div>
-      <p className="text-xs text-surface-500 dark:text-surface-400 mb-3">許可されたIPアドレスからのみアクセスを許可</p>
+      <p className="text-xs text-surface-500 dark:text-surface-400 mb-3">許可されたIPアドレスからのみアクセスを許可（ファイルDL・メール送信・サーバー接続すべてに適用）</p>
 
       {showForm && (
         <div className="mb-4 p-3 rounded-lg bg-surface-50 dark:bg-surface-800 space-y-3">

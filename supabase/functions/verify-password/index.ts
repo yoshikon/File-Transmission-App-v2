@@ -9,6 +9,56 @@ const corsHeaders = {
     "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+function getClientIp(req: Request): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    req.headers.get("x-real-ip") ||
+    ""
+  );
+}
+
+function ipToNumber(ip: string): number {
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((p) => isNaN(p) || p < 0 || p > 255)) return -1;
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+function isIpAllowed(clientIp: string, allowList: { ip_address: string; enabled: boolean }[]): boolean {
+  const enabled = allowList.filter((r) => r.enabled);
+  if (enabled.length === 0) return true;
+  const clientNum = ipToNumber(clientIp);
+  if (clientNum === -1) return false;
+  for (const rule of enabled) {
+    const addr = rule.ip_address.trim();
+    if (addr.includes("/")) {
+      const [base, prefixStr] = addr.split("/");
+      const prefix = parseInt(prefixStr, 10);
+      if (isNaN(prefix) || prefix < 0 || prefix > 32) continue;
+      const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
+      const baseNum = ipToNumber(base);
+      if (baseNum === -1) continue;
+      if ((clientNum & mask) === (baseNum & mask)) return true;
+    } else {
+      if (clientNum === ipToNumber(addr)) return true;
+    }
+  }
+  return false;
+}
+
+async function checkIpRestriction(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  req: Request,
+): Promise<boolean> {
+  const { data: rules } = await supabase
+    .from("ip_restrictions")
+    .select("ip_address, enabled")
+    .eq("user_id", userId);
+  if (!rules || rules.length === 0) return true;
+  const clientIp = getClientIp(req);
+  return isIpAllowed(clientIp, rules);
+}
+
 async function hashPassword(password: string, salt: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(salt + password);
@@ -68,14 +118,22 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      const salt = generateSalt();
-      const hash = await hashPassword(password, salt);
-      const passwordHash = `${salt}:${hash}`;
-
       const supabase = createClient(
         supabaseUrl,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
+
+      const ipAllowed = await checkIpRestriction(supabase, user.id, req);
+      if (!ipAllowed) {
+        return new Response(JSON.stringify({ error: "Access denied: IP address not allowed" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const salt = generateSalt();
+      const hash = await hashPassword(password, salt);
+      const passwordHash = `${salt}:${hash}`;
 
       const { error: updateError } = await supabase
         .from("deliveries")
