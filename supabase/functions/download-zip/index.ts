@@ -221,8 +221,19 @@ Deno.serve(async (req: Request) => {
     const files = filesData as DeliveryFile[];
     const recipient = recipientData as Recipient;
 
+    if (deliveryTyped.download_limit !== null) {
+      if (recipient.download_count >= deliveryTyped.download_limit) {
+        return new Response(
+          JSON.stringify({ error: 'Download limit exceeded' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const blobWriter = new BlobWriter();
     const zipWriter = new ZipWriter(blobWriter);
+
+    const updatedCounts = { ...(recipient.file_download_counts || {}) };
 
     for (const file of files) {
       const { data: fileBlob, error: downloadError } = await supabase.storage
@@ -239,30 +250,30 @@ Deno.serve(async (req: Request) => {
 
       await zipWriter.add(file.file_name, blobReader);
 
+      updatedCounts[file.id] = (updatedCounts[file.id] || 0) + 1;
+
       await supabase.from('download_logs').insert({
         delivery_recipient_id: recipient.id,
         file_id: file.id,
         download_type: 'bulk',
       });
-
-      const counts = { ...(recipient.file_download_counts || {}) };
-      counts[file.id] = (counts[file.id] || 0) + 1;
-
-      await supabase
-        .from('delivery_recipients')
-        .update({
-          download_count: recipient.download_count + 1,
-          file_download_counts: counts,
-          first_accessed_at: new Date().toISOString(),
-        })
-        .eq('id', recipient.id);
     }
+
+    const isFirstAccess = !recipientData.first_accessed_at;
+
+    await supabase
+      .from('delivery_recipients')
+      .update({
+        download_count: recipient.download_count + 1,
+        file_download_counts: updatedCounts,
+        first_accessed_at: isFirstAccess ? new Date().toISOString() : recipientData.first_accessed_at,
+      })
+      .eq('id', recipient.id);
 
     await zipWriter.close();
     const zipBlob = blobWriter.getData();
 
     const recipientEmail = recipientData.recipient_email || 'unknown';
-    const isFirstAccess = !recipientData.first_accessed_at;
     const fileNames = files.map((f) => f.file_name).join(', ');
 
     if (deliveryTyped.notify_on_download) {
