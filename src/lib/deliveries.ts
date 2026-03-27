@@ -128,11 +128,11 @@ export async function fetchDeliveryById(id: string): Promise<Delivery | null> {
 
 export async function fetchDeliveryByToken(token: string): Promise<{
   delivery: Delivery | null;
-  recipient: { id: string; recipient_email: string; download_count: number; file_download_counts: Record<string, number> } | null;
+  recipient: { id: string; recipient_email: string; download_count: number; file_download_counts: Record<string, number>; registered_at: string | null } | null;
 }> {
   const { data: recipientData } = await supabase
     .from('delivery_recipients')
-    .select('id, delivery_id, recipient_email, download_count, file_download_counts')
+    .select('id, delivery_id, recipient_email, download_count, file_download_counts, registered_at')
     .eq('token', token)
     .maybeSingle();
 

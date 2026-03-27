@@ -304,6 +304,11 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      await supabase
+        .from("delivery_recipients")
+        .update({ registered_at: new Date().toISOString() })
+        .eq("token", delivery_token);
+
       return new Response(
         JSON.stringify({ success: true, email: recipientData.recipient_email }),
         {

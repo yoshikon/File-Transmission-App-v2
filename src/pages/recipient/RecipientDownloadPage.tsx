@@ -53,6 +53,11 @@ export default function RecipientDownloadPage() {
         return;
       }
 
+      if (!recipient.registered_at) {
+        navigate(`/d/${token}/register`);
+        return;
+      }
+
       setDelivery(d);
       setRecipientId(recipient.id);
 
