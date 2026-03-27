@@ -64,7 +64,7 @@ export async function createDelivery(
       }
     }
 
-    const { error: fileError } = await supabase
+    const { data: insertedFiles, error: fileError } = await supabase
       .from('delivery_files')
       .insert(
         form.files.map((f) => ({
@@ -75,9 +75,32 @@ export async function createDelivery(
           file_extension: getFileExtension(f.name),
           storage_path: `${delivery.id}/${f.id}_${f.name}`,
         }))
-      );
+      )
+      .select();
     if (fileError) {
       return { data: null, error: fileError.message };
+    }
+
+    if (form.serverConfigId && insertedFiles && insertedFiles.length > 0) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-to-server`;
+        for (const dbFile of insertedFiles) {
+          fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              delivery_file_id: dbFile.id,
+              server_config_id: form.serverConfigId,
+              storage_path: dbFile.storage_path,
+              file_name: dbFile.file_name,
+            }),
+          }).catch(() => {});
+        }
+      }
     }
   }
 

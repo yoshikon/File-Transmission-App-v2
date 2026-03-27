@@ -76,6 +76,10 @@ export interface DeliveryFile {
   storage_path: string;
   file_token: string;
   file_extension: string;
+  server_config_id: string | null;
+  server_path: string | null;
+  server_upload_status: 'none' | 'uploading' | 'success' | 'failed';
+  server_upload_error: string | null;
   created_at: string;
 }
 
@@ -112,6 +116,20 @@ export interface AuditLog {
   created_at: string;
 }
 
+export interface ServerConfig {
+  id: string;
+  user_id: string;
+  name: string;
+  protocol: string;
+  host: string;
+  port: string;
+  username: string;
+  upload_path: string;
+  is_active: boolean;
+  status: 'connected' | 'disconnected' | 'testing';
+  last_tested_at: string | null;
+}
+
 export interface DeliveryFormData {
   recipients: { email: string; type: RecipientType }[];
   files: SelectedFile[];
@@ -126,6 +144,7 @@ export interface DeliveryFormData {
   notifyOnOpen: boolean;
   notifyOnDownload: boolean;
   scheduledAt: string | null;
+  serverConfigId: string | null;
 }
 
 export interface SelectedFile {

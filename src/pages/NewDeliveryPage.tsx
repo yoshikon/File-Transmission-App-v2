@@ -5,6 +5,7 @@ import {
   Plus, X, Upload, FileText, Image, FileSpreadsheet, File,
   Calendar, Lock, Bell, Eye, Send, ArrowLeft, ArrowRight, Trash2,
   AlertCircle, BookUser, Link2, Copy, Mail, Clock, PenLine, ChevronDown,
+  Server,
 } from 'lucide-react';
 import { formatFileSize } from '../utils/format';
 import { buildDownloadUrl, getFileIcon as getEmojiIcon, getExtensionDisplay } from '../utils/file-metadata';
@@ -12,10 +13,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { createDelivery } from '../lib/deliveries';
 import { sendDeliveryEmails, type EmailSendResult } from '../lib/email';
 import { fetchSignatures } from '../lib/signatures';
+import { supabase } from '../lib/supabase';
 import ContactPickerModal from '../components/ContactPickerModal';
 import EmailPreview from '../components/EmailPreview';
 import TemplatePickerModal from '../components/TemplatePickerModal';
-import type { Delivery, DeliveryFormData, RecipientType, DeliveryFile, EmailTemplate, Signature } from '../types';
+import type { Delivery, DeliveryFormData, RecipientType, DeliveryFile, EmailTemplate, Signature, ServerConfig } from '../types';
 
 const steps = [
   { id: 1, label: '宛先設定', icon: Users },
@@ -56,6 +58,7 @@ export default function NewDeliveryPage() {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [signatures, setSignatures] = useState<Signature[]>([]);
   const [showSignaturePicker, setShowSignaturePicker] = useState(false);
+  const [serverConfigs, setServerConfigs] = useState<ServerConfig[]>([]);
 
   const [form, setForm] = useState<DeliveryFormData>({
     recipients: [{ email: '', type: 'to' as RecipientType }],
@@ -71,11 +74,26 @@ export default function NewDeliveryPage() {
     notifyOnOpen: true,
     notifyOnDownload: true,
     scheduledAt: null,
+    serverConfigId: null,
   });
 
   useEffect(() => {
     if (!user) return;
     fetchSignatures(user.id).then(({ data }) => setSignatures(data ?? []));
+    supabase
+      .from('server_configs')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('protocol', ['SFTP', 'FTP'])
+      .order('is_active', { ascending: false })
+      .then(({ data }) => {
+        const configs = (data ?? []) as ServerConfig[];
+        setServerConfigs(configs);
+        const activeServer = configs.find((s) => s.is_active);
+        if (activeServer) {
+          setForm((prev) => ({ ...prev, serverConfigId: activeServer.id }));
+        }
+      });
   }, [user]);
 
   const updateField = <K extends keyof DeliveryFormData>(key: K, value: DeliveryFormData[K]) => {
@@ -241,6 +259,7 @@ export default function NewDeliveryPage() {
             subject: '',
             message: '',
             signatureId: null,
+            serverConfigId: serverConfigs.find((s) => s.is_active)?.id ?? null,
           });
         }}
       />
@@ -371,6 +390,53 @@ export default function NewDeliveryPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {serverConfigs.length > 0 && (
+              <div className="rounded-xl border border-surface-200 dark:border-surface-700 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Server className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                  <span className="text-sm font-medium text-surface-700 dark:text-surface-300">ファイルサーバーへ転送</span>
+                </div>
+                <p className="text-xs text-surface-500 dark:text-surface-400">
+                  Supabase Storageへの保存に加え、指定のサーバーにもバックグラウンドで転送します。
+                </p>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer rounded-lg p-2.5 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
+                    <input
+                      type="radio"
+                      name="server"
+                      checked={form.serverConfigId === null}
+                      onChange={() => updateField('serverConfigId', null)}
+                      className="text-brand-600 focus:ring-brand-500"
+                    />
+                    <span className="text-sm text-surface-600 dark:text-surface-300">転送しない（Supabase Storageのみ）</span>
+                  </label>
+                  {serverConfigs.map((s) => (
+                    <label key={s.id} className={`flex items-center gap-3 cursor-pointer rounded-lg p-2.5 transition-colors ${form.serverConfigId === s.id ? 'bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800' : 'hover:bg-surface-50 dark:hover:bg-surface-800'}`}>
+                      <input
+                        type="radio"
+                        name="server"
+                        checked={form.serverConfigId === s.id}
+                        onChange={() => updateField('serverConfigId', s.id)}
+                        className="text-brand-600 focus:ring-brand-500"
+                      />
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Server className={`h-4 w-4 shrink-0 ${s.status === 'connected' ? 'text-emerald-500' : 'text-surface-400'}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-surface-700 dark:text-surface-300 truncate">{s.name}</p>
+                          <p className="text-xs text-surface-400 dark:text-surface-500 truncate">{s.protocol} · {s.host} · {s.upload_path}</p>
+                        </div>
+                        {s.is_active && (
+                          <span className="text-[10px] font-semibold rounded-full bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 px-2 py-0.5 shrink-0">
+                            推奨
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -548,6 +614,12 @@ export default function NewDeliveryPage() {
               <SummaryRow label="パスワード保護" value={form.passwordProtected ? 'あり' : 'なし'} />
               {form.scheduledAt && (
                 <SummaryRow label="予約送信" value={new Date(form.scheduledAt).toLocaleString('ja-JP')} />
+              )}
+              {form.serverConfigId && (
+                <SummaryRow
+                  label="サーバー転送"
+                  value={serverConfigs.find((s) => s.id === form.serverConfigId)?.name ?? form.serverConfigId}
+                />
               )}
             </div>
 
