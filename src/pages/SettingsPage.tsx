@@ -1,16 +1,18 @@
 import { useSearchParams } from 'react-router-dom';
-import { Server, Bell, Shield, User, PenLine } from 'lucide-react';
+import { Server, Bell, Shield, User, PenLine, ClipboardList } from 'lucide-react';
 import ProfileSettings from './settings/ProfileSettings';
 import ServerSettings from './settings/ServerSettings';
 import NotificationSettings from './settings/NotificationSettings';
 import SecuritySettings from './settings/SecuritySettings';
 import SignaturesSettings from './settings/SignaturesSettings';
+import AuditLogSettings from './settings/AuditLogSettings';
+import { useAuth } from '../contexts/AuthContext';
 
-type SettingsTab = 'profile' | 'servers' | 'notifications' | 'security' | 'signatures';
+type SettingsTab = 'profile' | 'servers' | 'notifications' | 'security' | 'signatures' | 'audit';
 
-const validTabs: SettingsTab[] = ['profile', 'servers', 'notifications', 'security', 'signatures'];
+const validTabs: SettingsTab[] = ['profile', 'servers', 'notifications', 'security', 'signatures', 'audit'];
 
-const tabs: { id: SettingsTab; label: string; icon: typeof Server }[] = [
+const baseTabs: { id: SettingsTab; label: string; icon: typeof Server }[] = [
   { id: 'profile', label: 'プロフィール', icon: User },
   { id: 'servers', label: 'サーバー設定', icon: Server },
   { id: 'notifications', label: '通知設定', icon: Bell },
@@ -18,12 +20,20 @@ const tabs: { id: SettingsTab; label: string; icon: typeof Server }[] = [
   { id: 'signatures', label: '署名', icon: PenLine },
 ];
 
+const adminTabs: { id: SettingsTab; label: string; icon: typeof Server }[] = [
+  { id: 'audit', label: '監査ログ', icon: ClipboardList },
+];
+
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { profile } = useAuth();
+  const isSuperAdmin = profile?.role === 'super_admin';
   const rawTab = searchParams.get('tab');
   const tab: SettingsTab = validTabs.includes(rawTab as SettingsTab)
     ? (rawTab as SettingsTab)
     : 'profile';
+
+  const tabs = isSuperAdmin ? [...baseTabs, ...adminTabs] : baseTabs;
 
   const setTab = (id: SettingsTab) => {
     setSearchParams({ tab: id }, { replace: true });
@@ -53,6 +63,7 @@ export default function SettingsPage() {
         {tab === 'notifications' && <NotificationSettings />}
         {tab === 'security' && <SecuritySettings />}
         {tab === 'signatures' && <SignaturesSettings />}
+        {tab === 'audit' && isSuperAdmin && <AuditLogSettings />}
       </div>
     </div>
   );

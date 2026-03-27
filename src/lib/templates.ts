@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { writeAuditLog } from './audit';
 import type { EmailTemplate } from '../types';
 
 export async function fetchTemplates(userId: string): Promise<{ data: EmailTemplate[] | null; error: string | null }> {
@@ -35,6 +36,7 @@ export async function createTemplate(
     return { data: null, error: error.message };
   }
 
+  writeAuditLog('template.create', template.name, { template_id: data.id, name: template.name });
   return { data, error: null };
 }
 
@@ -53,6 +55,7 @@ export async function updateTemplate(
     return { data: null, error: error.message };
   }
 
+  writeAuditLog('template.update', updates.name ?? templateId, { template_id: templateId });
   return { data, error: null };
 }
 
@@ -66,5 +69,6 @@ export async function deleteTemplate(templateId: string): Promise<{ error: strin
     return { error: error.message };
   }
 
+  writeAuditLog('template.delete', templateId, { template_id: templateId });
   return { error: null };
 }

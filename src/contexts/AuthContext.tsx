@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import type { ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { writeAuditLog } from '../lib/audit';
 import type { Profile } from '../types';
 
 interface AuthState {
@@ -59,6 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) {
+      writeAuditLog('user.login', email, { email });
+    }
     return { error: error?.message ?? null };
   };
 
@@ -68,10 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: { data: { full_name: fullName, role: 'sender' } },
     });
+    if (!error) {
+      writeAuditLog('user.signup', email, { email, full_name: fullName });
+    }
     return { error: error?.message ?? null };
   };
 
   const signOut = async () => {
+    writeAuditLog('user.logout', user?.email ?? '');
     await supabase.auth.signOut();
     setProfile(null);
   };

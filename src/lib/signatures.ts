@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { writeAuditLog } from './audit';
 import type { Signature } from '../types';
 
 export async function fetchSignatures(userId: string): Promise<{ data: Signature[] | null; error: string | null }> {
@@ -33,6 +34,7 @@ export async function createSignature(
     return { data: null, error: error.message };
   }
 
+  writeAuditLog('signature.create', signature.name, { signature_id: data.id, name: signature.name });
   return { data, error: null };
 }
 
@@ -51,6 +53,7 @@ export async function updateSignature(
     return { data: null, error: error.message };
   }
 
+  writeAuditLog('signature.update', updates.name ?? signatureId, { signature_id: signatureId });
   return { data, error: null };
 }
 
@@ -64,5 +67,6 @@ export async function deleteSignature(signatureId: string): Promise<{ error: str
     return { error: error.message };
   }
 
+  writeAuditLog('signature.delete', signatureId, { signature_id: signatureId });
   return { error: null };
 }

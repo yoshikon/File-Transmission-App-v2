@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { writeAuditLog } from './audit';
 import type { Delivery, DeliveryFormData } from '../types';
 import { getFileExtension } from '../utils/file-metadata';
 
@@ -104,6 +105,16 @@ export async function createDelivery(
   }
 
   const fullDelivery = await fetchDeliveryById(delivery.id);
+
+  const action = form.scheduledAt ? 'delivery.schedule' : 'delivery.create';
+  writeAuditLog(action, form.subject, {
+    delivery_id: delivery.id,
+    subject: form.subject,
+    recipient_count: form.recipients.filter((r) => r.email.includes('@')).length,
+    file_count: form.files.length,
+    scheduled_at: form.scheduledAt ?? undefined,
+  });
+
   return { data: fullDelivery, error: null };
 }
 
@@ -231,6 +242,9 @@ export async function revokeDelivery(deliveryId: string): Promise<{ error: strin
     .from('deliveries')
     .update({ status: 'revoked' })
     .eq('id', deliveryId);
+  if (!error) {
+    writeAuditLog('delivery.revoke', deliveryId, { delivery_id: deliveryId });
+  }
   return { error: error?.message ?? null };
 }
 
@@ -252,5 +266,8 @@ export async function extendDeliveryExpiry(deliveryId: string, days: number): Pr
     .update({ expires_at: baseDate.toISOString(), status: 'sent' })
     .eq('id', deliveryId);
 
+  if (!error) {
+    writeAuditLog('delivery.extend_expiry', deliveryId, { delivery_id: deliveryId, extended_days: days, new_expires_at: baseDate.toISOString() });
+  }
   return { error: error?.message ?? null };
 }
