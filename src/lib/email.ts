@@ -18,6 +18,7 @@ export async function sendDeliveryEmails(
   senderName: string,
   senderCompany: string,
   appUrl: string,
+  signatureHtml: string | null = null,
 ): Promise<EmailSendResult> {
   const recipients = delivery.delivery_recipients ?? [];
   const files = delivery.delivery_files ?? [];
@@ -46,6 +47,7 @@ export async function sendDeliveryEmails(
       message: delivery.message,
       sender_name: senderName,
       sender_company: senderCompany,
+      signature_html: signatureHtml,
       files: files.map((f) => ({
         name: f.file_name,
         size: f.file_size,

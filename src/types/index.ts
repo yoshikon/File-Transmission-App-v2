@@ -118,6 +118,7 @@ export interface DeliveryFormData {
   subject: string;
   message: string;
   templateId: string | null;
+  signatureId: string | null;
   expiresInDays: number;
   downloadLimit: number | null;
   passwordProtected: boolean;

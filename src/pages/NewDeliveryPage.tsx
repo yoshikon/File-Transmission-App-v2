@@ -1,20 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Paperclip, MessageSquare, Settings2, CheckCircle2,
   Plus, X, Upload, FileText, Image, FileSpreadsheet, File,
   Calendar, Lock, Bell, Eye, Send, ArrowLeft, ArrowRight, Trash2,
-  AlertCircle, BookUser, Link2, Copy, Mail, Clock,
+  AlertCircle, BookUser, Link2, Copy, Mail, Clock, PenLine, ChevronDown,
 } from 'lucide-react';
 import { formatFileSize } from '../utils/format';
 import { buildDownloadUrl, getFileIcon as getEmojiIcon, getExtensionDisplay } from '../utils/file-metadata';
 import { useAuth } from '../contexts/AuthContext';
 import { createDelivery } from '../lib/deliveries';
 import { sendDeliveryEmails, type EmailSendResult } from '../lib/email';
+import { fetchSignatures } from '../lib/signatures';
 import ContactPickerModal from '../components/ContactPickerModal';
 import EmailPreview from '../components/EmailPreview';
 import TemplatePickerModal from '../components/TemplatePickerModal';
-import type { Delivery, DeliveryFormData, RecipientType, DeliveryFile, EmailTemplate } from '../types';
+import type { Delivery, DeliveryFormData, RecipientType, DeliveryFile, EmailTemplate, Signature } from '../types';
 
 const steps = [
   { id: 1, label: '宛先設定', icon: Users },
@@ -53,6 +54,8 @@ export default function NewDeliveryPage() {
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [contactPickerTarget, setContactPickerTarget] = useState<number | null>(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [signatures, setSignatures] = useState<Signature[]>([]);
+  const [showSignaturePicker, setShowSignaturePicker] = useState(false);
 
   const [form, setForm] = useState<DeliveryFormData>({
     recipients: [{ email: '', type: 'to' as RecipientType }],
@@ -60,6 +63,7 @@ export default function NewDeliveryPage() {
     subject: '',
     message: '',
     templateId: null,
+    signatureId: null,
     expiresInDays: 7,
     downloadLimit: null,
     passwordProtected: false,
@@ -68,6 +72,11 @@ export default function NewDeliveryPage() {
     notifyOnDownload: true,
     scheduledAt: null,
   });
+
+  useEffect(() => {
+    if (!user) return;
+    fetchSignatures(user.id).then(({ data }) => setSignatures(data ?? []));
+  }, [user]);
 
   const updateField = <K extends keyof DeliveryFormData>(key: K, value: DeliveryFormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -164,12 +173,16 @@ export default function NewDeliveryPage() {
       setEmailResult({ total: 0, sent: 0, failed: 0, results: [] });
     } else {
       setSendingPhase('emailing');
+      const selectedSignature = form.signatureId
+        ? signatures.find((s) => s.id === form.signatureId) ?? null
+        : null;
       try {
         const result = await sendDeliveryEmails(
           data,
           profile?.full_name || '送信者',
           profile?.department || '',
           window.location.origin,
+          selectedSignature?.content_html ?? null,
         );
         setEmailResult(result);
       } catch {
@@ -227,6 +240,7 @@ export default function NewDeliveryPage() {
             files: [],
             subject: '',
             message: '',
+            signatureId: null,
           });
         }}
       />
@@ -392,6 +406,63 @@ export default function NewDeliveryPage() {
                 rows={8}
                 className="input-field resize-none"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5 flex items-center gap-2">
+                <PenLine className="h-4 w-4 text-surface-400" /> 署名
+              </label>
+              {signatures.length === 0 ? (
+                <p className="text-sm text-surface-400 dark:text-surface-500">
+                  署名がありません。<a href="/settings?tab=signatures" className="text-brand-600 dark:text-brand-400 hover:underline">設定</a>から作成できます。
+                </p>
+              ) : (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowSignaturePicker((v) => !v)}
+                    className="input-field flex items-center justify-between w-full text-left"
+                  >
+                    <span className={form.signatureId ? 'text-surface-800 dark:text-surface-200' : 'text-surface-400 dark:text-surface-500'}>
+                      {form.signatureId
+                        ? signatures.find((s) => s.id === form.signatureId)?.name ?? '署名を選択'
+                        : '署名なし'}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-surface-400 transition-transform ${showSignaturePicker ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showSignaturePicker && (
+                    <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 shadow-lg overflow-hidden animate-fade-in">
+                      <button
+                        onClick={() => { updateField('signatureId', null); setShowSignaturePicker(false); }}
+                        className={`w-full text-left px-4 py-3 text-sm hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors ${!form.signatureId ? 'bg-surface-50 dark:bg-surface-700 font-medium text-brand-600 dark:text-brand-400' : 'text-surface-600 dark:text-surface-300'}`}
+                      >
+                        署名なし
+                      </button>
+                      {signatures.map((sig) => (
+                        <button
+                          key={sig.id}
+                          onClick={() => { updateField('signatureId', sig.id); setShowSignaturePicker(false); }}
+                          className={`w-full text-left px-4 py-3 border-t border-surface-100 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors ${form.signatureId === sig.id ? 'bg-surface-50 dark:bg-surface-700 font-medium text-brand-600 dark:text-brand-400' : 'text-surface-800 dark:text-surface-200'}`}
+                        >
+                          <p className="text-sm font-medium">{sig.name}</p>
+                          <div
+                            className="text-xs text-surface-400 dark:text-surface-500 mt-0.5 truncate"
+                            dangerouslySetInnerHTML={{ __html: sig.content_html }}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {form.signatureId && (
+                <div className="mt-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 p-3">
+                  <p className="text-xs font-medium text-surface-400 dark:text-surface-500 mb-2">署名プレビュー</p>
+                  <div
+                    className="text-sm"
+                    dangerouslySetInnerHTML={{ __html: signatures.find((s) => s.id === form.signatureId)?.content_html ?? '' }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}

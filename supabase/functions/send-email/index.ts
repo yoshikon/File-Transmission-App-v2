@@ -28,6 +28,7 @@ interface SendEmailRequest {
   message: string;
   sender_name: string;
   sender_company: string;
+  signature_html: string | null;
   files: FileInfo[];
   recipients: RecipientInfo[];
   expires_at: string;
@@ -190,6 +191,7 @@ function buildEmailHtml(
             <td style="background:#ffffff;padding:32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
               <p style="color:#64748B;font-size:14px;margin:0 0 16px;">${recipientName} \u69D8</p>
               <div style="color:#1E293B;font-size:15px;line-height:1.8;white-space:pre-wrap;margin:0 0 24px;">${req.message || ""}</div>
+              ${req.signature_html ? `<div style="border-top:1px solid #e2e8f0;padding-top:16px;margin-bottom:24px;font-size:14px;color:#374151;">${req.signature_html}</div>` : ""}
               <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;">
                 <tr>
                   <td style="padding:20px;">
@@ -282,6 +284,10 @@ function buildPlainText(
   lines.push("");
   lines.push(req.sender_name || "\u9001\u4FE1\u8005");
   lines.push(req.sender_company || "");
+  if (req.signature_html) {
+    lines.push("");
+    lines.push(req.signature_html.replace(/<[^>]+>/g, "").replace(/&[^;]+;/g, " ").trim());
+  }
   lines.push("");
   lines.push(
     "\u203B \u3053\u306E\u30E1\u30FC\u30EB\u306F SecureShare \u304B\u3089\u81EA\u52D5\u9001\u4FE1\u3055\u308C\u3066\u3044\u307E\u3059\u3002"

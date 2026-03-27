@@ -1,19 +1,21 @@
 import { useSearchParams } from 'react-router-dom';
-import { Server, Bell, Shield, User } from 'lucide-react';
+import { Server, Bell, Shield, User, PenLine } from 'lucide-react';
 import ProfileSettings from './settings/ProfileSettings';
 import ServerSettings from './settings/ServerSettings';
 import NotificationSettings from './settings/NotificationSettings';
 import SecuritySettings from './settings/SecuritySettings';
+import SignaturesSettings from './settings/SignaturesSettings';
 
-type SettingsTab = 'profile' | 'servers' | 'notifications' | 'security';
+type SettingsTab = 'profile' | 'servers' | 'notifications' | 'security' | 'signatures';
 
-const validTabs: SettingsTab[] = ['profile', 'servers', 'notifications', 'security'];
+const validTabs: SettingsTab[] = ['profile', 'servers', 'notifications', 'security', 'signatures'];
 
 const tabs: { id: SettingsTab; label: string; icon: typeof Server }[] = [
   { id: 'profile', label: 'プロフィール', icon: User },
   { id: 'servers', label: 'サーバー設定', icon: Server },
   { id: 'notifications', label: '通知設定', icon: Bell },
   { id: 'security', label: 'セキュリティ', icon: Shield },
+  { id: 'signatures', label: '署名', icon: PenLine },
 ];
 
 export default function SettingsPage() {
@@ -50,6 +52,7 @@ export default function SettingsPage() {
         {tab === 'servers' && <ServerSettings />}
         {tab === 'notifications' && <NotificationSettings />}
         {tab === 'security' && <SecuritySettings />}
+        {tab === 'signatures' && <SignaturesSettings />}
       </div>
     </div>
   );
