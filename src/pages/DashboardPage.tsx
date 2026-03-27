@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Send, Download, Clock, TrendingUp, ArrowUpRight,
+  Send, Download, Clock,
   ChevronRight, FileText, Lock, Eye, AlertTriangle, Loader2,
 } from 'lucide-react';
 import { fetchDeliveries } from '../lib/deliveries';
