@@ -71,10 +71,9 @@ export interface DeliveryFile {
   id: string;
   delivery_id: string;
   file_name: string;
-  file_path: string;
   file_size: number;
   mime_type: string | null;
-  storage_path: string | null;
+  storage_path: string;
   file_token: string;
   file_extension: string;
   created_at: string;
