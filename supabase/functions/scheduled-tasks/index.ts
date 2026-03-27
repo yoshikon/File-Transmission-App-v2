@@ -4,7 +4,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-Client-Info, Apikey",
+    "Content-Type, Authorization, X-Client-Info, Apikey, X-Cron-Secret",
 };
 
 Deno.serve(async (req: Request) => {
@@ -13,6 +13,23 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (cronSecret) {
+      const incoming = req.headers.get("X-Cron-Secret");
+      const authHeader = req.headers.get("Authorization");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+      const validCronSecret = incoming === cronSecret;
+      const validServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
+
+      if (!validCronSecret && !validServiceRole) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -47,6 +64,134 @@ Deno.serve(async (req: Request) => {
     });
   }
 });
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
+}
+
+function getFileIcon(fileName: string): string {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  const map: Record<string, string> = {
+    pdf: "📄", doc: "📝", docx: "📝",
+    xls: "📊", xlsx: "📊", csv: "📊",
+    ppt: "📋", pptx: "📋",
+    zip: "🗜️", tar: "🗜️", gz: "🗜️",
+    jpg: "🖼️", jpeg: "🖼️", png: "🖼️", gif: "🖼️", svg: "🖼️",
+    mp4: "🎬", mov: "🎬",
+    mp3: "🎵", wav: "🎵",
+    txt: "📄",
+  };
+  return map[ext] || "📁";
+}
+
+function getExtDisplay(fileName: string): string {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  return ext ? ext.toUpperCase() : "FILE";
+}
+
+function formatExpiryDisplay(expiresAt: string): string {
+  const d = new Date(expiresAt);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}まで`;
+}
+
+function buildEmailHtml(
+  subject: string,
+  message: string,
+  senderName: string,
+  senderCompany: string,
+  recipientEmail: string,
+  files: { file_name: string; file_size: number; file_extension: string; file_token: string }[],
+  expiresAt: string,
+  downloadLimit: number | null,
+  appUrl: string,
+  recipientToken: string,
+): string {
+  const recipientName = recipientEmail.split("@")[0];
+  const expiryDisplay = formatExpiryDisplay(expiresAt);
+  const limitDisplay = downloadLimit ? `${downloadLimit}回まで` : "制限なし";
+  const bulkUrl = `${appUrl}/d/${recipientToken}`;
+
+  const fileRows = files.map((f) => {
+    const icon = getFileIcon(f.file_name);
+    const ext = getExtDisplay(f.file_name);
+    const size = formatFileSize(f.file_size);
+    const fileUrl = `${appUrl}/d/${recipientToken}/f/${f.file_token}`;
+    return `
+    <tr>
+      <td style="padding: 6px 0;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fff;border:1px solid #DBEAFE;border-radius:6px;">
+          <tr>
+            <td style="padding:12px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="font-size:18px;width:30px;vertical-align:middle;">${icon}</td>
+                  <td style="vertical-align:middle;">
+                    <span style="color:#1E293B;font-weight:bold;font-size:14px;">${f.file_name}</span>
+                    <span style="color:#64748B;font-size:12px;margin-left:8px;">${ext} &middot; ${size}</span>
+                  </td>
+                  <td style="text-align:right;vertical-align:middle;">
+                    <a href="${fileUrl}" style="background:#1A56DB;color:#fff;text-decoration:none;padding:6px 14px;border-radius:4px;font-size:13px;display:inline-block;">ダウンロード</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>`;
+  }).join("");
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#f4f6f9;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f4f6f9;padding:20px;">
+    <tr>
+      <td align="center">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;">
+          <tr>
+            <td style="background:#1A56DB;padding:24px 32px;border-radius:8px 8px 0 0;">
+              <p style="color:#fff;font-size:18px;font-weight:bold;margin:0;">${senderCompany || "SecureShare"}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;padding:32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <p style="color:#64748B;font-size:14px;margin:0 0 16px;">${recipientName} 様</p>
+              <div style="color:#1E293B;font-size:15px;line-height:1.8;white-space:pre-wrap;margin:0 0 24px;">${message || ""}</div>
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="color:#1A56DB;font-weight:bold;font-size:15px;margin:0 0 16px;">📁 共有ファイル（${files.length}件）</p>
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                      ${fileRows}
+                    </table>
+                    <div style="text-align:center;margin-top:16px;">
+                      <a href="${bulkUrl}" style="background:#0F172A;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:14px;font-weight:bold;display:inline-block;">まとめてダウンロード（ZIP）</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              <div style="background:#FEF9C3;border:1px solid #FDE047;border-radius:6px;padding:12px 16px;font-size:13px;color:#713F12;margin-top:24px;">
+                <strong>有効期限：</strong>${expiryDisplay}　／　<strong>DL制限：</strong>${limitDisplay}
+              </div>
+              <p style="margin:24px 0 0;font-size:14px;color:#475569;">${senderName || "送信者"}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#F1F5F9;padding:16px 32px;border-radius:0 0 8px 8px;font-size:12px;color:#94A3B8;text-align:center;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
+              このメールは SecureShare から自動送信されています。
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
 
 async function sendEmail(
   resendApiKey: string | undefined,
@@ -258,6 +403,9 @@ async function processScheduledDeliveries(
     return { processed: 0 };
   }
 
+  const appUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "").replace("https://", "") || "";
+  const siteUrl = `https://ihcerkyvpjnnszpqaino.supabase.co`.replace("https://ihcerkyvpjnnszpqaino.supabase.co", "https://ihcerkyvpjnnszpqaino.supabase.co");
+
   let sent = 0;
 
   for (const delivery of deliveries) {
@@ -296,11 +444,32 @@ async function processScheduledDeliveries(
     const fromEmail = notifSettings?.sender_email || "onboarding@resend.dev";
     const fromName = notifSettings?.sender_name || "SecureShare";
 
+    const { data: siteConfig } = await supabase
+      .from("server_configs")
+      .select("host")
+      .eq("user_id", delivery.sender_id)
+      .limit(1)
+      .maybeSingle();
+
+    const resolvedAppUrl = siteConfig?.host || "https://ihcerkyvpjnnszpqaino.supabase.co";
+
     if (resendApiKey) {
       for (const recipient of recipients) {
-        const recipientName = recipient.recipient_email.split("@")[0];
-        const bulkUrl = `https://secureshare.app/d/${recipient.token}`;
+        const html = buildEmailHtml(
+          delivery.subject,
+          delivery.message || "",
+          senderName,
+          senderCompany,
+          recipient.recipient_email,
+          files || [],
+          delivery.expires_at,
+          delivery.download_limit,
+          resolvedAppUrl,
+          recipient.token,
+        );
 
+        const recipientName = recipient.recipient_email.split("@")[0];
+        const bulkUrl = `${resolvedAppUrl}/d/${recipient.token}`;
         const fileListText = (files || [])
           .map((f, i) => `  ${i + 1}. ${f.file_name} (${f.file_extension?.toUpperCase() || "FILE"})`)
           .join("\n");
@@ -322,12 +491,13 @@ async function processScheduledDeliveries(
           senderCompany,
         ].join("\n");
 
-        await sendEmail(
+        const ok = await sendEmail(
           resendApiKey,
           `${fromName} <${fromEmail}>`,
           recipient.recipient_email,
           delivery.subject,
           text,
+          html,
         );
 
         await supabase.from("email_logs").insert({
@@ -335,8 +505,9 @@ async function processScheduledDeliveries(
           delivery_recipient_id: recipient.id,
           recipient_email: recipient.recipient_email,
           subject: delivery.subject,
-          status: "sent",
-          sent_at: new Date().toISOString(),
+          status: ok ? "sent" : "failed",
+          sent_at: ok ? new Date().toISOString() : null,
+          error_message: ok ? null : "Failed to send via Resend",
         });
       }
     }
