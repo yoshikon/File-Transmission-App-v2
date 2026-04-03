@@ -234,8 +234,11 @@ export default function NewDeliveryPage() {
   const totalSize = form.files.reduce((sum, f) => sum + f.size, 0);
   const expiresAt = new Date(Date.now() + form.expiresInDays * 24 * 60 * 60 * 1000).toISOString();
 
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
+
   const canProceed = () => {
-    if (step === 1) return form.recipients.some((r) => r.email.includes('@'));
+    if (step === 1) return form.recipients.some((r) => isValidEmail(r.email));
     if (step === 2) return form.files.length > 0;
     if (step === 3) return form.subject.trim().length > 0;
     return true;
@@ -322,7 +325,7 @@ export default function NewDeliveryPage() {
                     value={r.email}
                     onChange={(e) => updateRecipient(i, e.target.value)}
                     placeholder="email@example.com"
-                    className="input-field flex-1"
+                    className={`input-field flex-1 ${r.email && !isValidEmail(r.email) ? 'border-red-400 focus:ring-red-400' : ''}`}
                   />
                   <button
                     onClick={() => openRowContactPicker(i)}
@@ -752,26 +755,92 @@ function SendCompletionScreen({
   const allSent = emailResult && emailResult.sent === emailResult.total && emailResult.total > 0;
   const someFailed = emailResult && emailResult.failed > 0;
 
+  if (delivery.scheduled_at) {
+    const scheduledDate = new Date(delivery.scheduled_at).toLocaleString('ja-JP', {
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+    return (
+      <div className="max-w-3xl mx-auto py-8 animate-fade-in">
+        <div className="text-center mb-8">
+          <div className="rounded-full bg-blue-100 dark:bg-blue-900/20 p-6 mx-auto w-fit mb-6">
+            <Clock className="h-16 w-16 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-surface-800 dark:text-surface-100 mb-2">予約送信を設定しました</h2>
+          <p className="text-surface-500 dark:text-surface-400">
+            {recipients.length}件の宛先に、指定日時に自動でメール送信されます
+          </p>
+        </div>
+
+        <div className="card p-5 mb-6 border-l-4 border-l-blue-500 bg-blue-50 dark:bg-blue-900/10">
+          <div className="flex items-start gap-3">
+            <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-surface-800 dark:text-surface-200 mb-1">送信予定日時</p>
+              <p className="text-lg font-mono text-blue-700 dark:text-blue-300">{scheduledDate}</p>
+              <p className="text-xs text-surface-500 dark:text-surface-400 mt-2">
+                この時刻にシステムが自動でメール送信します。送信前にキャンセルするには履歴画面からリンクを無効化してください。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {serverUploadErrors.length > 0 && (
+          <div className="card p-4 mb-6 border-l-4 border-l-amber-500 bg-amber-50 dark:bg-amber-900/20">
+            <div className="flex items-center gap-3 mb-2">
+              <Server className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="font-semibold text-amber-800 dark:text-amber-200">サーバー転送に失敗したファイルがあります</span>
+            </div>
+            {serverUploadErrors.map((err, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm py-1 px-2">
+                <AlertCircle className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
+                <span className="text-amber-800 dark:text-amber-200">{err}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {recipients.length > 0 && (
+          <div className="card p-6 mb-8">
+            <h3 className="text-sm font-semibold text-surface-800 dark:text-surface-200 mb-3 flex items-center gap-2">
+              <Mail className="h-4 w-4 text-surface-400 dark:text-surface-500" />
+              送信予定の宛先 ({recipients.length}件)
+            </h3>
+            <div className="space-y-2">
+              {recipients.map((r) => (
+                <div key={r.id} className="flex items-center gap-3 py-2 px-3 rounded-lg bg-surface-50 dark:bg-surface-800">
+                  <Mail className="h-4 w-4 text-surface-400 shrink-0" />
+                  <span className="text-sm text-surface-800 dark:text-surface-200 flex-1 truncate">{r.recipient_email}</span>
+                  <span className="badge-neutral text-xs">{r.recipient_type.toUpperCase()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-center gap-3">
+          <button onClick={onViewDetail} className="btn-secondary">送信詳細を確認</button>
+          <button onClick={onNewDelivery} className="btn-primary">新しい送信を作成</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto py-8 animate-fade-in">
       <div className="text-center mb-8">
-        <div className={`rounded-full p-6 mx-auto w-fit mb-6 ${delivery.scheduled_at ? 'bg-blue-100 dark:bg-blue-900/20' : allSent ? 'bg-emerald-100 dark:bg-emerald-900/20' : someFailed ? 'bg-amber-100 dark:bg-amber-900/20' : 'bg-emerald-100 dark:bg-emerald-900/20'}`}>
-          {delivery.scheduled_at ? (
-            <Clock className="h-16 w-16 text-blue-600 dark:text-blue-400" />
-          ) : someFailed ? (
+        <div className={`rounded-full p-6 mx-auto w-fit mb-6 ${allSent ? 'bg-emerald-100 dark:bg-emerald-900/20' : someFailed ? 'bg-amber-100 dark:bg-amber-900/20' : 'bg-emerald-100 dark:bg-emerald-900/20'}`}>
+          {someFailed ? (
             <AlertCircle className="h-16 w-16 text-amber-600 dark:text-amber-400" />
           ) : (
-            <CheckCircle2 className={`h-16 w-16 ${allSent ? 'text-emerald-600 dark:text-emerald-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
+            <CheckCircle2 className="h-16 w-16 text-emerald-600 dark:text-emerald-400" />
           )}
         </div>
         <h2 className="text-2xl font-bold text-surface-800 dark:text-surface-100 mb-2">
-          {delivery.scheduled_at ? '予約送信を設定しました' : someFailed ? '送信完了（一部エラー）' : '送信完了'}
+          {someFailed ? '送信完了（一部エラー）' : '送信完了'}
         </h2>
         <p className="text-surface-500 dark:text-surface-400">
-          {delivery.scheduled_at
-            ? `${recipients.length}件の宛先に ${new Date(delivery.scheduled_at).toLocaleString('ja-JP')} にメールが送信されます`
-            : `${recipients.length}件の宛先にダウンロードリンクを発行しました`
-          }
+          {recipients.length}件の宛先にダウンロードリンクを発行しました
         </p>
       </div>
 

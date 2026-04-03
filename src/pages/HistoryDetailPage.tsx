@@ -3,6 +3,7 @@ import {
   ArrowLeft, FileText, Download, Clock, Eye, Lock,
   XCircle, CalendarPlus, Copy, CheckCircle2,
   User, Mail, Loader2, Link2, AlertTriangle, Ban, ChevronDown, ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { fetchDeliveryById, revokeDelivery, extendDeliveryExpiry } from '../lib/deliveries';
@@ -24,6 +25,7 @@ interface EmailLog {
 export default function HistoryDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const RECIPIENTS_PER_PAGE = 10;
   const [copied, setCopied] = useState('');
   const [copiedFileUrl, setCopiedFileUrl] = useState('');
   const [delivery, setDelivery] = useState<Delivery | null>(null);
@@ -34,6 +36,7 @@ export default function HistoryDetailPage() {
   const [revoking, setRevoking] = useState(false);
   const [extending, setExtending] = useState(false);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
+  const [recipientPage, setRecipientPage] = useState(1);
 
   useEffect(() => {
     if (!id) return;
@@ -224,7 +227,7 @@ export default function HistoryDetailPage() {
             受信者・ダウンロード状況 ({recipients.length}件)
           </h3>
           <div className="space-y-3">
-            {recipients.map((r) => {
+            {recipients.slice((recipientPage - 1) * RECIPIENTS_PER_PAGE, recipientPage * RECIPIENTS_PER_PAGE).map((r) => {
               const isExpanded = expandedRecipients.has(r.id);
               const fileDownloads = getRecipientFileDownloads(r);
               const totalDl = fileDownloads.reduce((sum, fd) => sum + fd.count, 0);
@@ -345,6 +348,43 @@ export default function HistoryDetailPage() {
               );
             })}
           </div>
+
+          {recipients.length > RECIPIENTS_PER_PAGE && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-surface-200 dark:border-surface-700">
+              <p className="text-xs text-surface-500 dark:text-surface-400">
+                {(recipientPage - 1) * RECIPIENTS_PER_PAGE + 1}〜{Math.min(recipientPage * RECIPIENTS_PER_PAGE, recipients.length)}件 / 全{recipients.length}件
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setRecipientPage((p) => Math.max(1, p - 1))}
+                  disabled={recipientPage === 1}
+                  className="btn-ghost p-1.5 text-surface-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                {Array.from({ length: Math.ceil(recipients.length / RECIPIENTS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setRecipientPage(page)}
+                    className={`w-7 h-7 rounded text-xs font-medium transition-colors ${
+                      recipientPage === page
+                        ? 'bg-brand-600 text-white'
+                        : 'text-surface-500 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setRecipientPage((p) => Math.min(Math.ceil(recipients.length / RECIPIENTS_PER_PAGE), p + 1))}
+                  disabled={recipientPage === Math.ceil(recipients.length / RECIPIENTS_PER_PAGE)}
+                  className="btn-ghost p-1.5 text-surface-400 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

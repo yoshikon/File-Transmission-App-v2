@@ -25,6 +25,7 @@ export default function RecipientDownloadPage() {
   const [recipientId, setRecipientId] = useState('');
   const [downloadedFiles, setDownloadedFiles] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [authenticated, setAuthenticated] = useState(true);
   const [passwordInput, setPasswordInput] = useState('');
   const [verifying, setVerifying] = useState(false);
@@ -113,6 +114,7 @@ export default function RecipientDownloadPage() {
     if (!token) return;
 
     setDownloading(file.id);
+    setDownloadProgress(null);
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const downloadUrl = `${supabaseUrl}/functions/v1/download-file?delivery_token=${token}&file_token=${file.file_token}`;
@@ -128,15 +130,42 @@ export default function RecipientDownloadPage() {
         throw new Error('Download failed');
       }
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.file_name;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const contentLength = response.headers.get('Content-Length');
+      const total = contentLength ? parseInt(contentLength, 10) : null;
+
+      if (response.body && total) {
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let received = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          setDownloadProgress(Math.round((received / total) * 100));
+        }
+
+        const blob = new Blob(chunks, { type: response.headers.get('Content-Type') || 'application/octet-stream' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.file_name;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.file_name;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
 
       setDownloadedFiles((prev) => new Set(prev).add(file.id));
     } catch (error) {
@@ -144,6 +173,7 @@ export default function RecipientDownloadPage() {
       alert('ダウンロードに失敗しました。');
     } finally {
       setDownloading(null);
+      setDownloadProgress(null);
     }
   };
 
@@ -340,9 +370,17 @@ export default function RecipientDownloadPage() {
             <div className="mt-4">
               <div className="flex items-center justify-between text-xs text-surface-500 mb-1">
                 <span>ダウンロード中...</span>
+                {downloadProgress !== null && <span>{downloadProgress}%</span>}
               </div>
               <div className="h-2 bg-surface-200 rounded-full overflow-hidden">
-                <div className="h-full bg-brand-600 rounded-full transition-all duration-1000 animate-pulse" style={{ width: '67%' }} />
+                {downloadProgress !== null ? (
+                  <div
+                    className="h-full bg-brand-600 rounded-full transition-all duration-200"
+                    style={{ width: `${downloadProgress}%` }}
+                  />
+                ) : (
+                  <div className="h-full bg-brand-600 rounded-full animate-[indeterminate_1.5s_ease-in-out_infinite]" style={{ width: '40%' }} />
+                )}
               </div>
             </div>
           )}

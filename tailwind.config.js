@@ -39,6 +39,7 @@ export default {
         'slide-up': 'slideUp 0.3s ease-out',
         'slide-in-right': 'slideInRight 0.3s ease-out',
         'shimmer': 'shimmer 2s infinite',
+        'indeterminate': 'indeterminate 1.5s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -56,6 +57,11 @@ export default {
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
+        },
+        indeterminate: {
+          '0%': { transform: 'translateX(-150%) scaleX(0.5)' },
+          '50%': { transform: 'translateX(50%) scaleX(0.8)' },
+          '100%': { transform: 'translateX(300%) scaleX(0.5)' },
         },
       },
     },

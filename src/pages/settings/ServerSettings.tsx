@@ -3,6 +3,21 @@ import { Server, Plus, TestTube2, CheckCircle2, XCircle, X, Save, Trash2, Loader
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
+type Toast = { id: number; type: 'success' | 'error'; message: string };
+
+function useToast() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  let nextId = 0;
+
+  const show = (type: Toast['type'], message: string) => {
+    const id = ++nextId;
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  };
+
+  return { toasts, show };
+}
+
 interface ServerConfig {
   id: string;
   user_id: string;
@@ -36,6 +51,7 @@ export default function ServerSettings() {
   });
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { toasts, show: showToast } = useToast();
 
   useEffect(() => {
     loadServers();
@@ -163,10 +179,16 @@ export default function ServerSettings() {
       const now = new Date().toISOString();
       await supabase.from('server_configs').update({ status: newStatus, last_tested_at: now }).eq('id', id);
       setServers((prev) => prev.map((s) => s.id === id ? { ...s, status: newStatus as 'connected' | 'disconnected', last_tested_at: now } : s));
+      if (data.connected) {
+        showToast('success', `${server.name} への接続に成功しました`);
+      } else {
+        showToast('error', `${server.name} への接続に失敗しました${data.message ? `: ${data.message}` : ''}`);
+      }
     } catch {
       const now = new Date().toISOString();
       await supabase.from('server_configs').update({ status: 'disconnected', last_tested_at: now }).eq('id', id);
       setServers((prev) => prev.map((s) => s.id === id ? { ...s, status: 'disconnected', last_tested_at: now } : s));
+      showToast('error', `${server.name} への接続テスト中にエラーが発生しました`);
     }
   };
 
@@ -180,6 +202,28 @@ export default function ServerSettings() {
 
   return (
     <div className="space-y-6">
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className={`flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg text-sm font-medium animate-slide-in-right pointer-events-auto ${
+                t.type === 'success'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-red-600 text-white'
+              }`}
+            >
+              {t.type === 'success' ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+              ) : (
+                <XCircle className="h-4 w-4 shrink-0" />
+              )}
+              <span>{t.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-surface-800 dark:text-surface-100">ファイルサーバー接続</h3>
