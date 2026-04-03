@@ -49,6 +49,15 @@ export async function createDelivery(
   }
 
   if (form.files.length > 0) {
+    const uploadedPaths: string[] = [];
+
+    const rollback = async () => {
+      if (uploadedPaths.length > 0) {
+        await supabase.storage.from('delivery-files').remove(uploadedPaths);
+      }
+      await supabase.from('deliveries').delete().eq('id', delivery.id);
+    };
+
     for (const file of form.files) {
       if (!file.file) continue;
 
@@ -61,8 +70,10 @@ export async function createDelivery(
         });
 
       if (uploadError) {
+        await rollback();
         return { data: null, error: `ファイルのアップロードに失敗しました: ${uploadError.message}`, serverUploadErrors: [] };
       }
+      uploadedPaths.push(storagePath);
     }
 
     const { data: insertedFiles, error: fileError } = await supabase
@@ -79,6 +90,7 @@ export async function createDelivery(
       )
       .select();
     if (fileError) {
+      await rollback();
       return { data: null, error: fileError.message, serverUploadErrors: [] };
     }
 
@@ -222,7 +234,7 @@ export async function fetchFileByToken(deliveryToken: string, fileToken: string)
   const { data: fileData } = await supabase
     .from('delivery_files')
     .select('id, file_name, file_size, mime_type')
-    .eq('delivery_id', delivery.id)
+    .eq('delivery_id', recipientData.delivery_id)
     .eq('file_token', fileToken)
     .maybeSingle();
 

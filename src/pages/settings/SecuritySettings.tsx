@@ -230,11 +230,38 @@ function TwoFactorSection() {
   );
 }
 
+function validateIpOrCidr(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return 'IPアドレスを入力してください';
+
+  const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+  const cidrRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/;
+
+  const cidrMatch = trimmed.match(cidrRegex);
+  if (cidrMatch) {
+    const octets = [cidrMatch[1], cidrMatch[2], cidrMatch[3], cidrMatch[4]].map(Number);
+    if (octets.some((o) => o > 255)) return '無効なIPアドレスです（各オクテットは0〜255）';
+    const prefix = Number(cidrMatch[5]);
+    if (prefix > 32) return '無効なCIDRプレフィックスです（/0〜/32）';
+    return null;
+  }
+
+  const ipMatch = trimmed.match(ipv4Regex);
+  if (ipMatch) {
+    const octets = [ipMatch[1], ipMatch[2], ipMatch[3], ipMatch[4]].map(Number);
+    if (octets.some((o) => o > 255)) return '無効なIPアドレスです（各オクテットは0〜255）';
+    return null;
+  }
+
+  return '有効なIPv4アドレスまたはCIDR形式で入力してください（例: 192.168.1.1 または 192.168.0.0/24）';
+}
+
 function IpRestrictionSection({ userId }: { userId: string }) {
   const [restrictions, setRestrictions] = useState<IpRestriction[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ip_address: '', label: '' });
+  const [ipError, setIpError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -252,7 +279,12 @@ function IpRestrictionSection({ userId }: { userId: string }) {
   };
 
   const handleAdd = async () => {
-    if (!form.ip_address.trim() || !userId) return;
+    const validationError = validateIpOrCidr(form.ip_address);
+    if (validationError) {
+      setIpError(validationError);
+      return;
+    }
+    if (!userId) return;
     setSaving(true);
     const { error } = await supabase.from('ip_restrictions').insert({
       user_id: userId,
@@ -263,6 +295,7 @@ function IpRestrictionSection({ userId }: { userId: string }) {
     setSaving(false);
     if (!error) {
       setForm({ ip_address: '', label: '' });
+      setIpError(null);
       setShowForm(false);
       await loadRestrictions();
     }
@@ -299,10 +332,16 @@ function IpRestrictionSection({ userId }: { userId: string }) {
             <label className="block text-xs font-medium text-surface-700 dark:text-surface-300 mb-1">IPアドレス / CIDR</label>
             <input
               value={form.ip_address}
-              onChange={(e) => setForm({ ...form, ip_address: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, ip_address: e.target.value });
+                if (ipError) setIpError(validateIpOrCidr(e.target.value));
+              }}
               placeholder="192.168.1.0/24 または 203.0.113.50"
-              className="input-field text-sm"
+              className={`input-field text-sm ${ipError ? 'border-red-400 focus:ring-red-400' : ''}`}
             />
+            {ipError && (
+              <p className="mt-1 text-xs text-red-600 dark:text-red-400">{ipError}</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-surface-700 dark:text-surface-300 mb-1">ラベル（任意）</label>
@@ -314,7 +353,7 @@ function IpRestrictionSection({ userId }: { userId: string }) {
             />
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => { setShowForm(false); setForm({ ip_address: '', label: '' }); }} className="btn-secondary text-xs">キャンセル</button>
+            <button onClick={() => { setShowForm(false); setForm({ ip_address: '', label: '' }); setIpError(null); }} className="btn-secondary text-xs">キャンセル</button>
             <button onClick={handleAdd} disabled={!form.ip_address.trim() || saving} className="btn-primary text-xs">
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
               追加

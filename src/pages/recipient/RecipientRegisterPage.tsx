@@ -63,10 +63,17 @@ export default function RecipientRegisterPage() {
         }),
       });
 
-      const data = await res.json();
+      let data: { success?: boolean; error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setError('サーバーからの応答を解析できませんでした。もう一度お試しください。');
+        setLoading(false);
+        return;
+      }
 
-      if (!res.ok || !data.success) {
-        setError(data.error || '登録に失敗しました。もう一度お試しください。');
+      if (!res.ok || data.success !== true) {
+        setError(data.error?.trim() || '登録に失敗しました。もう一度お試しください。');
         setLoading(false);
         return;
       }

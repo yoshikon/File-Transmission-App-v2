@@ -27,10 +27,17 @@ export async function writeAuditLog(
   details?: Record<string, unknown>,
 ): Promise<void> {
   try {
-    await supabase.from('audit_logs').insert({
-      action,
-      resource,
-      details: details ?? null,
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/write-audit-log`;
+    await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action, resource, details: details ?? null }),
     });
   } catch {
   }

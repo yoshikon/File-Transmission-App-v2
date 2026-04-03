@@ -322,11 +322,14 @@ Deno.serve(async (req: Request) => {
     }
 
     const isFirstAccess = !recipientData.first_accessed_at;
+    const downloadedFileCount = Object.keys(updatedCounts).filter(
+      (id) => updatedCounts[id] > (recipient.file_download_counts?.[id] ?? 0)
+    ).length;
 
     await supabase
       .from('delivery_recipients')
       .update({
-        download_count: recipient.download_count + 1,
+        download_count: recipient.download_count + downloadedFileCount,
         file_download_counts: updatedCounts,
         first_accessed_at: isFirstAccess ? new Date().toISOString() : recipientData.first_accessed_at,
       })
