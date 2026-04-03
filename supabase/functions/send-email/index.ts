@@ -86,6 +86,53 @@ async function checkIpRestriction(
   return isIpAllowed(clientIp, rules);
 }
 
+const RATE_LIMIT_MAX = 100;
+const RATE_LIMIT_WINDOW_HOURS = 1;
+
+async function checkAndIncrementRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  recipientCount: number,
+): Promise<{ allowed: boolean; remaining: number; resetAt: string }> {
+  const windowStart = new Date();
+  windowStart.setMinutes(0, 0, 0);
+  windowStart.setHours(windowStart.getHours() - (RATE_LIMIT_WINDOW_HOURS - 1));
+
+  const { data: existing } = await supabase
+    .from('email_rate_limits')
+    .select('id, send_count, window_start')
+    .eq('user_id', userId)
+    .gte('window_start', windowStart.toISOString())
+    .order('window_start', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const currentCount = existing?.send_count ?? 0;
+  const remaining = Math.max(0, RATE_LIMIT_MAX - currentCount);
+  const resetAt = new Date(windowStart);
+  resetAt.setHours(resetAt.getHours() + RATE_LIMIT_WINDOW_HOURS);
+
+  if (currentCount + recipientCount > RATE_LIMIT_MAX) {
+    return { allowed: false, remaining, resetAt: resetAt.toISOString() };
+  }
+
+  const hourWindowStart = new Date();
+  hourWindowStart.setMinutes(0, 0, 0);
+
+  if (existing) {
+    await supabase
+      .from('email_rate_limits')
+      .update({ send_count: currentCount + recipientCount, updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
+  } else {
+    await supabase
+      .from('email_rate_limits')
+      .insert({ user_id: userId, window_start: hourWindowStart.toISOString(), send_count: recipientCount });
+  }
+
+  return { allowed: true, remaining: remaining - recipientCount, resetAt: resetAt.toISOString() };
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -350,6 +397,26 @@ Deno.serve(async (req: Request) => {
     }
 
     const body: SendEmailRequest = await req.json();
+
+    const recipientCount = body.recipients?.length ?? 0;
+    const rateLimit = await checkAndIncrementRateLimit(supabase, user.id, recipientCount);
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: `レート制限に達しました。1時間あたり最大${RATE_LIMIT_MAX}件のメールを送信できます。リセット時刻: ${new Date(rateLimit.resetAt).toLocaleString('ja-JP')}`,
+          rate_limit_reset_at: rateLimit.resetAt,
+          remaining: rateLimit.remaining,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(Math.ceil((new Date(rateLimit.resetAt).getTime() - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
 
     const { data: notifSettings } = await supabase
       .from("notification_settings")

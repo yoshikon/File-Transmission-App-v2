@@ -2,9 +2,13 @@ import { supabase } from './supabase';
 import type { Contact } from '../types';
 
 export async function fetchContacts(): Promise<Contact[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data } = await supabase
     .from('contacts')
     .select('*')
+    .eq('user_id', user.id)
     .order('name', { ascending: true });
 
   return (data as Contact[]) ?? [];

@@ -6,7 +6,8 @@ import { getFileExtension } from '../utils/file-metadata';
 export async function createDelivery(
   senderId: string,
   form: DeliveryFormData
-): Promise<{ data: Delivery | null; error: string | null }> {
+): Promise<{ data: Delivery | null; error: string | null; serverUploadErrors: string[] }> {
+  let serverUploadErrors: string[] = [];
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + form.expiresInDays);
 
@@ -28,7 +29,7 @@ export async function createDelivery(
     .single();
 
   if (deliveryError || !delivery) {
-    return { data: null, error: deliveryError?.message ?? '送信データの作成に失敗しました' };
+    return { data: null, error: deliveryError?.message ?? '送信データの作成に失敗しました', serverUploadErrors: [] };
   }
 
   const validRecipients = form.recipients.filter((r) => r.email.includes('@'));
@@ -43,7 +44,7 @@ export async function createDelivery(
         }))
       );
     if (recipientError) {
-      return { data: null, error: recipientError.message };
+      return { data: null, error: recipientError.message, serverUploadErrors: [] };
     }
   }
 
@@ -60,7 +61,7 @@ export async function createDelivery(
         });
 
       if (uploadError) {
-        return { data: null, error: `ファイルのアップロードに失敗しました: ${uploadError.message}` };
+        return { data: null, error: `ファイルのアップロードに失敗しました: ${uploadError.message}`, serverUploadErrors: [] };
       }
     }
 
@@ -78,27 +79,36 @@ export async function createDelivery(
       )
       .select();
     if (fileError) {
-      return { data: null, error: fileError.message };
+      return { data: null, error: fileError.message, serverUploadErrors: [] };
     }
 
+    serverUploadErrors = [];
     if (form.serverConfigId && insertedFiles && insertedFiles.length > 0) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-to-server`;
         for (const dbFile of insertedFiles) {
-          fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              delivery_file_id: dbFile.id,
-              server_config_id: form.serverConfigId,
-              storage_path: dbFile.storage_path,
-              file_name: dbFile.file_name,
-            }),
-          }).catch(() => {});
+          try {
+            const res = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                delivery_file_id: dbFile.id,
+                server_config_id: form.serverConfigId,
+                storage_path: dbFile.storage_path,
+                file_name: dbFile.file_name,
+              }),
+            });
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              serverUploadErrors.push(`${dbFile.file_name}: ${errData.error ?? 'サーバーへの転送に失敗しました'}`);
+            }
+          } catch {
+            serverUploadErrors.push(`${dbFile.file_name}: サーバーへの転送中にエラーが発生しました`);
+          }
         }
       }
     }
@@ -123,7 +133,7 @@ export async function createDelivery(
         });
       }
     } catch {
-      return { data: null, error: 'パスワードの保存に失敗しました' };
+      return { data: null, error: 'パスワードの保存に失敗しました', serverUploadErrors: [] };
     }
   }
 
@@ -138,7 +148,7 @@ export async function createDelivery(
     scheduled_at: form.scheduledAt ?? undefined,
   });
 
-  return { data: fullDelivery, error: null };
+  return { data: fullDelivery, error: null, serverUploadErrors };
 }
 
 export async function fetchDeliveries(): Promise<Delivery[]> {

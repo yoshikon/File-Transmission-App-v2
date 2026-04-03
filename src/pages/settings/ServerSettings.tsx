@@ -100,7 +100,7 @@ export default function ServerSettings() {
     };
 
     if (editing) {
-      const { error } = await supabase.from('server_configs').update(updates).eq('id', editing.id);
+      const { error } = await supabase.from('server_configs').update(updates).eq('id', editing.id).eq('user_id', user.id);
       if (!error) {
         if (form.is_active) {
           await supabase.from('server_configs').update({ is_active: false }).eq('user_id', user.id).neq('id', editing.id);
@@ -135,7 +135,8 @@ export default function ServerSettings() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('server_configs').delete().eq('id', id);
+    if (!user) return;
+    const { error } = await supabase.from('server_configs').delete().eq('id', id).eq('user_id', user.id);
     if (!error) setServers((prev) => prev.filter((s) => s.id !== id));
   };
 

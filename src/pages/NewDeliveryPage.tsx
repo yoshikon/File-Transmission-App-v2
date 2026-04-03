@@ -51,6 +51,7 @@ export default function NewDeliveryPage() {
   const [sentDelivery, setSentDelivery] = useState<Delivery | null>(null);
   const [emailResult, setEmailResult] = useState<EmailSendResult | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [serverUploadErrors, setServerUploadErrors] = useState<string[]>([]);
   const [copiedToken, setCopiedToken] = useState('');
   const [copiedFileUrl, setCopiedFileUrl] = useState('');
   const [showContactPicker, setShowContactPicker] = useState(false);
@@ -177,14 +178,18 @@ export default function NewDeliveryPage() {
     setSending(true);
     setSendError(null);
     setEmailResult(null);
+    setServerUploadErrors([]);
     setSendingPhase('creating');
 
-    const { data, error } = await createDelivery(user.id, form);
+    const { data, error, serverUploadErrors: uploadErrs } = await createDelivery(user.id, form);
     if (error || !data) {
       setSending(false);
       setSendingPhase(null);
       setSendError(error || '送信データの作成に失敗しました');
       return;
+    }
+    if (uploadErrs.length > 0) {
+      setServerUploadErrors(uploadErrs);
     }
 
     if (form.scheduledAt) {
@@ -241,6 +246,7 @@ export default function NewDeliveryPage() {
       <SendCompletionScreen
         delivery={sentDelivery}
         emailResult={emailResult}
+        serverUploadErrors={serverUploadErrors}
         copiedToken={copiedToken}
         copiedFileUrl={copiedFileUrl}
         onCopyUrl={handleCopyUrl}
@@ -722,6 +728,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 function SendCompletionScreen({
   delivery,
   emailResult,
+  serverUploadErrors,
   copiedToken,
   copiedFileUrl,
   onCopyUrl,
@@ -731,6 +738,7 @@ function SendCompletionScreen({
 }: {
   delivery: Delivery;
   emailResult: EmailSendResult | null;
+  serverUploadErrors: string[];
   copiedToken: string;
   copiedFileUrl: string;
   onCopyUrl: (token: string) => void;
@@ -786,6 +794,26 @@ function SendCompletionScreen({
               {r.status === 'failed' && r.error && (
                 <span className="text-xs text-red-500 dark:text-red-400 ml-auto truncate max-w-[200px]">{r.error}</span>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {serverUploadErrors.length > 0 && (
+        <div className="card p-4 mb-6 border-l-4 border-l-amber-500 bg-amber-50 dark:bg-amber-900/20">
+          <div className="flex items-center gap-3 mb-2">
+            <Server className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="font-semibold text-amber-800 dark:text-amber-200">
+              サーバー転送に失敗したファイルがあります
+            </span>
+          </div>
+          <p className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+            ファイルの送信は完了していますが、外部サーバーへの転送に失敗しました。サーバー設定を確認してください。
+          </p>
+          {serverUploadErrors.map((err, i) => (
+            <div key={i} className="flex items-start gap-2 text-sm py-1 px-2">
+              <AlertCircle className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
+              <span className="text-amber-800 dark:text-amber-200">{err}</span>
             </div>
           ))}
         </div>
