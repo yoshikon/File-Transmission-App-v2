@@ -118,10 +118,10 @@ function TwoFactorSection() {
     if (error) {
       setError(error.message);
     } else {
-      setFactorId(null);
       setEnrolling(false);
       setQrCode('');
       setSecret('');
+      await checkMfaStatus();
     }
     setUnenrolling(false);
   };
@@ -282,6 +282,10 @@ function IpRestrictionSection({ userId }: { userId: string }) {
     const validationError = validateIpOrCidr(form.ip_address);
     if (validationError) {
       setIpError(validationError);
+      return;
+    }
+    if (restrictions.some((r) => r.ip_address === form.ip_address.trim())) {
+      setIpError('このIPアドレスは既に登録されています');
       return;
     }
     if (!userId) return;

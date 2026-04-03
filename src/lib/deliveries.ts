@@ -32,7 +32,7 @@ export async function createDelivery(
     return { data: null, error: deliveryError?.message ?? '送信データの作成に失敗しました', serverUploadErrors: [] };
   }
 
-  const validRecipients = form.recipients.filter((r) => r.email.includes('@'));
+  const validRecipients = form.recipients.filter((r) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(r.email.trim()));
   if (validRecipients.length > 0) {
     const { error: recipientError } = await supabase
       .from('delivery_recipients')
@@ -155,7 +155,7 @@ export async function createDelivery(
   writeAuditLog(action, form.subject, {
     delivery_id: delivery.id,
     subject: form.subject,
-    recipient_count: form.recipients.filter((r) => r.email.includes('@')).length,
+    recipient_count: validRecipients.length,
     file_count: form.files.length,
     scheduled_at: form.scheduledAt ?? undefined,
   });

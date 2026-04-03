@@ -268,6 +268,9 @@ export default function NewDeliveryPage() {
             subject: '',
             message: '',
             signatureId: null,
+            password: '',
+            passwordProtected: false,
+            scheduledAt: null,
             serverConfigId: serverConfigs.find((s) => s.is_active)?.id ?? null,
           });
         }}

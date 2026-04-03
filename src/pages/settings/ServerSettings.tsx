@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Server, Plus, TestTube2, CheckCircle2, XCircle, X, Save, Trash2, Loader2, Star, FolderOpen, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,10 +7,10 @@ type Toast = { id: number; type: 'success' | 'error'; message: string };
 
 function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  let nextId = 0;
+  const nextId = useRef(0);
 
   const show = (type: Toast['type'], message: string) => {
-    const id = ++nextId;
+    const id = ++nextId.current;
     setToasts((prev) => [...prev, { id, type, message }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   };
